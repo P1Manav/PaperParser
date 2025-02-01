@@ -8,8 +8,6 @@ import google.generativeai as genai
 # ✅ Ensure correct encoding to avoid Unicode errors
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Suppress STDERR output to avoid the grpc warning (if not critical)
-sys.stderr = open(os.devnull, 'w')
 
 # ✅ Function to create PPT from JSON
 def generate_ppt_from_template(json_content, template_path, output_path):
@@ -39,6 +37,7 @@ def generate_ppt_from_template(json_content, template_path, output_path):
 
     prs.save(output_path)
     print(f"✅ Presentation saved at: {output_path}")
+    sys.exit()
 
 # ✅ Check if PDF path is provided
 if len(sys.argv) < 2:
@@ -118,8 +117,14 @@ except json.JSONDecodeError as e:
 
 # ✅ Define paths
 template_selected = os.path.join(os.path.dirname(__file__), "Template3-ppt.pptx")
-output_pptx = os.path.join(os.path.dirname(__file__), "generated_presentation.pptx")
+# Define the relative path to the folder
+output_dir = os.path.join("outputs")
 
+# Ensure the directory exists
+os.makedirs(output_dir, exist_ok=True)
+
+# Define the full path for the output file
+output_pptx = os.path.join(output_dir, "generated_presentation.pptx")
 # ✅ Generate PPT
 generate_ppt_from_template(json_response_text, template_selected, output_pptx)
 
@@ -127,3 +132,6 @@ generate_ppt_from_template(json_response_text, template_selected, output_pptx)
 genai.cleanup()  # If cleanup function exists to close API connections.
 
 print(f"\n✅ PowerPoint generated successfully: {output_pptx}")
+
+# Exit the program after generating the PowerPoint
+  # Terminates the script after successful generation

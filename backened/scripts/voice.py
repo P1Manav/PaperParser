@@ -6,7 +6,8 @@ from pydub import AudioSegment
 
 # Paths
 CONVO_PATH = r"backened\data\conversation.json"
-OUTPUT_DIR = r"backened\output"
+# OUTPUT_DIR = r"backened\output"
+OUTPUT_DIR = "outputs"
 VOICES_DIR = r"backened\voices"
 FINAL_AUDIO_PATH = os.path.join(OUTPUT_DIR, "final_conversation.mp3")
 

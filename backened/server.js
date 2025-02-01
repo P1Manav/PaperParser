@@ -7,25 +7,30 @@ const fs = require("fs");
 
 const app = express();
 
-// Enable CORS for all origins
+// Enable CORS
 app.use(cors());
 app.use(express.json());
 
-// Ensure the `uploads` and `scripts` directories exist
+// Ensure directories exist
 const uploadDir = path.join(__dirname, "uploads");
 const scriptsDir = path.join(__dirname, "scripts");
+const outputDir = path.join(__dirname, "outputs");
 
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 if (!fs.existsSync(scriptsDir)) fs.mkdirSync(scriptsDir, { recursive: true });
+if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-// Set up multer for file uploads
+// Serve the `outputs` directory as static files
+app.use("/outputs", express.static(outputDir));
+
+// Configure Multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir); // Save files in the "uploads" directory
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname); // Get file extension
-    cb(null, Date.now() + ext); // Use a timestamped file name
+    const ext = path.extname(file.originalname);
+    cb(null, Date.now() + ext);
   },
 });
 
@@ -68,50 +73,73 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
   }
 
   const pathToPythonScript = path.join(scriptsDir, scriptName);
+  const outputFileName = `output_${Date.now()}_${outputType.toLowerCase()}.pdf`; // Adjust extension based on output type
+  const outputFilePath = path.join(outputDir, outputFileName);
+
   console.log(`Executing script: ${scriptName} for output type: ${outputType}`);
 
-  // For PPT, send the response after 30 seconds, but execute the script immediately
+  // For PPT, send an initial response after 20 seconds, then execute the script immediately
   if (outputType === "PPT") {
-    // Send success response after 20 seconds
+    // Send an initial response to let the client know that the generation has started
     setTimeout(() => {
-      res.json({ message: `${outputType} generation started successfully`, status: "Processing" });
-    }, 20000); // Wait for 20 seconds before responding
-
-    // Execute the Python script in the background immediately
-    if (!fs.existsSync(pathToPythonScript)) {
-      console.error(`Script ${scriptName} not found.`);
-    } else {
-      exec(`python "${pathToPythonScript}" "${uploadedFilePath}"`, (error, stdout, stderr) => {
-        if (error || stderr) {
-          console.error("Error processing file:", error || stderr);
-        } else {
-          console.log(`Python script (${scriptName}) output:`, stdout);
-        }
+      res.json({
+        message: `${outputType} generation started successfully`,
+        status: "Processing",
       });
-    }
 
-    return; // Exit here to prevent the second response being sent before timeout
+      // Execute the Python script to generate the PPT file
+      if (!fs.existsSync(pathToPythonScript)) {
+        console.error(`Script ${scriptName} not found.`);
+      } else {
+        exec(`python "${pathToPythonScript}" "${uploadedFilePath}" "${outputFilePath}"`, (error, stdout, stderr) => {
+          if (error || stderr) {
+            console.error("Error processing file:", error || stderr);
+          } else {
+            console.log(`Python script (${scriptName}) output:`, stdout);
+          }
+
+          // After the Python script finishes, construct the download URL
+          const generatedFilename = "generated_presentation.pptx"; // Assuming the PPT generation produces this file
+          const downloadUrl = `http://localhost:5000/outputs/${generatedFilename}`;
+
+          // Send the download URL response after the file is generated
+          res.json({
+            message: `${outputType} generated successfully`,
+            downloadUrl: downloadUrl, // Direct download URL
+          });
+        });
+      }
+    }, 20000);  // Timeout of 20 seconds
+    return; // Exit here to prevent second response from being sent before timeout
   }
 
   // For other output types, handle normally (without delay)
-  // Check if the script exists
   if (!fs.existsSync(pathToPythonScript)) {
     return res.status(500).json({ error: `Script ${scriptName} not found.` });
   }
 
-  // Execute the corresponding Python script
-  exec(`python "${pathToPythonScript}" "${uploadedFilePath}"`, (error, stdout, stderr) => {
+  // Execute the Python script for other output types
+  exec(`python "${pathToPythonScript}" "${uploadedFilePath}" "${outputFilePath}"`, (error, stdout, stderr) => {
     if (error || stderr) {
       console.error("Error processing file:", error || stderr);
       return res.status(500).json({ error: "Error processing file." });
     }
 
     console.log(`Python script (${scriptName}) output:`, stdout);
-    res.json({ message: `${outputType} generated successfully`, outputFile: `output_${outputType.toLowerCase()}.mp4` });
+
+    // Construct the correct download URL
+    const generatedFilename = outputType === "PPT" ? "generated_presentation.pptx" : "final_conversation.mp3";
+    const downloadUrl = `http://localhost:5000/outputs/${generatedFilename}`;
+
+    // Send the response with the download URL after processing
+    res.json({
+      message: `${outputType} generated successfully`,
+      downloadUrl: downloadUrl, // Send the correct file URL
+    });
   });
 });
 
-// Start the backend server
+// Start the server
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
