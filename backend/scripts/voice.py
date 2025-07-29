@@ -5,10 +5,10 @@ import edge_tts
 from pydub import AudioSegment
 
 # Paths
-CONVO_PATH = r"backened\data\conversation.json"
-# OUTPUT_DIR = r"backened\output"
+CONVO_PATH = r"backend\data\conversation.json"
+# OUTPUT_DIR = r"backend\output"
 OUTPUT_DIR = "outputs"
-VOICES_DIR = r"backened\voices"
+VOICES_DIR = r"backend\voices"
 FINAL_AUDIO_PATH = os.path.join(OUTPUT_DIR, "final_conversation.mp3")
 
 # Voice Mapping

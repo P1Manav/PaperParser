@@ -102,7 +102,7 @@ def process_uploaded_pdf_and_generate_podcast(input_pdf_path):
     print(json.dumps(conversation_json, indent=4))
 
     # Define the data directory and ensure it exists
-    data_directory = "backened/data"
+    data_directory = "backend/data"
     os.makedirs(data_directory, exist_ok=True)  # Create the directory if it doesn't exist
 
     # Define the JSON file path
