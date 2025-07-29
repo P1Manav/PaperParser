@@ -12,27 +12,37 @@ sys.stdout.reconfigure(encoding='utf-8')  # Prevent encoding issues in console
 
 # === Function to create PPT from JSON ===
 def generate_ppt_from_template(json_content, template_path, output_path):
+    print(f"🔸 Checking template path: {template_path}")
     if not os.path.exists(template_path):
         raise FileNotFoundError(f"❌ Template file not found at: {template_path}")
 
+    print("🔸 Loading PowerPoint template...")
     prs = Presentation(template_path)
-    slides_data = json.loads(json_content)
 
-    for i, slide_data in enumerate(slides_data["slides"]):
+    try:
+        slides_data = json.loads(json_content)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"❌ Invalid JSON passed to generate_ppt_from_template: {e}")
+
+    print("🔸 Populating slides...")
+    for i, slide_data in enumerate(slides_data.get("slides", [])):
         layout = prs.slide_layouts[0] if i == 0 else prs.slide_layouts[1]
         slide = prs.slides.add_slide(layout)
 
-        slide.shapes.title.text = slide_data["title"]
+        if slide.shapes.title:
+            slide.shapes.title.text = slide_data.get("title", "Untitled Slide")
 
         if "content" in slide_data:
-            content_box = slide.shapes.placeholders[1].text_frame
-            content_box.clear()
-            for point in slide_data["content"]:
-                content_box.add_paragraph().text = point.strip()
+            try:
+                content_box = slide.shapes.placeholders[1].text_frame
+                content_box.clear()
+                for point in slide_data["content"]:
+                    content_box.add_paragraph().text = point.strip()
+            except Exception as e:
+                print(f"⚠️ Could not add bullet points: {e}")
 
     prs.save(output_path)
     print(f"✅ Presentation saved at: {output_path}")
-
 
 # === Main Execution ===
 if __name__ == "__main__":
@@ -79,7 +89,10 @@ if __name__ == "__main__":
         """
     )
     json_chat = json_model.start_chat()
-    json_text = json_chat.send_message(summary_response).text.strip()
+    try:
+        json_text = json_chat.send_message(summary_response).text.strip()
+    except Exception as e:
+        raise RuntimeError(f"❌ Gemini JSON generation failed: {e}")
 
     if not json_text:
         raise ValueError("❌ Empty AI JSON response")
@@ -87,20 +100,25 @@ if __name__ == "__main__":
     print("🔹 AI JSON Response:")
     print(json_text)
 
+    # Validate JSON
+    print("🔹 Validating JSON...")
     try:
-        json.loads(json_text)  # Validate JSON
+        json.loads(json_text)
     except json.JSONDecodeError as e:
-        raise ValueError(f"❌ Invalid JSON: {e}")
+        print("❌ Bad JSON content:")
+        print(json_text)
+        raise ValueError(f"❌ Invalid JSON from Gemini: {e}")
 
     # Prepare paths
     template_path = os.path.join(os.path.dirname(__file__), "Template3-ppt.pptx")
     os.makedirs("outputs", exist_ok=True)
     output_pptx = os.path.join("outputs", "generated_presentation.pptx")
 
+    print("🔹 Generating PowerPoint...")
     generate_ppt_from_template(json_text, template_path, output_pptx)
 
-    # Optional cleanup
-    if hasattr(genai, "cleanup"):
-        genai.cleanup()
+    # Optional: Clean up Gemini session
+    # if hasattr(genai, "cleanup"):
+    #     genai.cleanup()
 
     print(f"\n✅ PowerPoint generated successfully: {output_pptx}")
