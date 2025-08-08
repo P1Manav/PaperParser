@@ -1,5 +1,5 @@
 # Use a base image with Node.js and Python
-FROM node:18-bullseye
+FROM node:lts
 
 # Install Python
 RUN apt-get update && \
