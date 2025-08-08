@@ -3,7 +3,7 @@ FROM node:lts
 
 # Install Python
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
+    apt-get install -y python3 python3-pip python3-dev build-essential && \
     ln -s /usr/bin/python3 /usr/bin/python
 
 # Create app directory
@@ -13,11 +13,12 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
 # Copy the rest of the code (including .py files and uploads folder)
 COPY . .
 
 # Install Python dependencies
-RUN pip install -r requirements.txt
 
 # Expose the backend port (update if your app uses another)
 EXPOSE 5000
