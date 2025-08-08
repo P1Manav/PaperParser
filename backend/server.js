@@ -511,12 +511,12 @@ app.listen(PORT, () => {
   console.log(`✅ Supabase configured: ${!!supabaseUrl}`)
 })
 
-const PING_INTERVAL = 40 * 1000 // 40 seconds
+//const PING_INTERVAL = 40 * 1000 // 40 seconds
 
-setInterval(() => {
-  const backendUrl = `https://paperparser.onrender.com` 
-  fetch(`${backendUrl}/api/health`)
-    .then((res) => res.json())
-    .then((data) => console.log(`Self-ping successful: ${data.status} at ${new Date().toISOString()}`))
-    .catch((err) => console.error(`Self-ping failed: ${err.message} at ${new Date().toISOString()}`))
-}, PING_INTERVAL)
+//setInterval(() => {
+//  const backendUrl = `https://paperparser.onrender.com` 
+//  fetch(`${backendUrl}/api/health`)
+//    .then((res) => res.json())
+//    .then((data) => console.log(`Self-ping successful: ${data.status} at ${new Date().toISOString()}`))
+//    .catch((err) => console.error(`Self-ping failed: ${err.message} at ${new Date().toISOString()}`))
+//}, PING_INTERVAL)
