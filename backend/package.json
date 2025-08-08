@@ -21,8 +21,5 @@
   "keywords": ["paperparser", "pdf", "podcast", "presentation", "ai"],
   "author": "P1Manav",
   "license": "MIT",
-  "engines": {
-    "node": "22.3.0"
-  }
 
 }
