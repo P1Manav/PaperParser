@@ -36,6 +36,10 @@ def group_image_bboxes(image_bboxes, y_tol=80, x_gap_tol=100):
     return groups
 
 
+
+
+
+
 def extract_combined_images_with_captions(file_path: str):
     pdf_file = fitz.open(file_path)
     os.makedirs("images", exist_ok=True)
@@ -92,6 +96,8 @@ def extract_combined_images_with_captions(file_path: str):
                 caption_text,
                 re.IGNORECASE,
             )
+
+           
 
             figure_caption = (
                 figure_match.group(0).strip()

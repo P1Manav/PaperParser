@@ -42,3 +42,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# backend\python-scripts\templates\*.pptx
+backend/uploads/*.pdf
+backend/images/*.png
+backend/images/*.json
+backend/python-scripts/templates/*.pptx
+
+backend/*.json
+
+__pycache__/

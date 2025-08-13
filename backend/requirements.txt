@@ -1,4 +1,3 @@
-pymango
 datetime
 langchain
 pyttsx3
@@ -14,6 +13,3 @@ python-dotenv
 groq
 gtts
 langchain_groq
-langchain_ollama
-chromadb
-#download ollama 
