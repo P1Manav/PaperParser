@@ -72,7 +72,7 @@ To set up the PaperParser project locally, follow these steps:
 
 ## Usage
 
-1. Upload a PDF: Use the web interface to upload an academic paper in PDF format.
+1. Upload a PDF : Use the web interface to upload an academic paper in PDF format.
 2. Select Output Format: Choose between generating a podcast or a PowerPoint presentation.
 3. Download or Stream: Once processed, download the generated presentation or stream the podcast directly from the application.
 
