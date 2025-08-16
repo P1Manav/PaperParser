@@ -44,33 +44,23 @@ export function DashboardSection({ user }: DashboardProps) {
   })
 
   const handleDownload = async (item: GenerationStatus) => {
-    if (!item.download_url) {
-      alert("Download URL not available")
-      return
-    }
-
     try {
-      // Create download link
+      if (!item.download_url) {
+        alert("Download URL not available")
+        return
+      }
+
+      // Create a temporary link to download the file
       const link = document.createElement("a")
       link.href = item.download_url
-
-      // Set proper filename
-      const filename =
-        item.type === "podcast"
-          ? `${item.title.replace(/[^a-z0-9]/gi, "_")}.mp3`
-          : `${item.title.replace(/[^a-z0-9]/gi, "_")}.pptx`
-
-      link.download = filename
+      link.download = item.type === "podcast" ? `${item.title}.mp3` : `${item.title}.pptx`
       link.target = "_blank"
-
-      // Trigger download
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
     } catch (error) {
       console.error("Download failed:", error)
-      // Fallback to opening in new tab
-      window.open(item.download_url, "_blank")
+      alert("Download failed. Please try again.")
     }
   }
 
@@ -264,28 +254,41 @@ export function DashboardSection({ user }: DashboardProps) {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {item.type === "podcast" && item.duration && <div>Duration: {item.duration}</div>}
-                            {item.type === "presentation" && item.slides && <div>{item.slides} slides</div>}
-                            <div className="text-gray-500">
-                              {item.settings?.voice && `Voice: ${item.settings.voice} • `}
-                              Length: {item.settings?.length}
-                              {item.settings?.style && ` • Style: ${item.settings.style}`}
-                            </div>
+                            {item.type === "presentation" && (
+                              <div>
+                                {/* Show pages based on length */}
+                                {item.settings?.length === "short" && <div>Pages: 5-8 slides</div>}
+                                {item.settings?.length === "medium" && <div>Pages: 10-15 slides</div>}
+                                {item.settings?.length === "long" && <div>Pages: 20-30 slides</div>}
+                                {!item.settings?.length && item.slides && <div>{item.slides} slides</div>}
+                                {!item.settings?.length && !item.slides && <div>Slides: N/A</div>}
+                                {/* Show template number */}
+                                {item.settings?.template && <div>Template: {item.settings.template}</div>}
+                              </div>
+                            )}
+                            {item.type === "podcast" && (
+                              <div>
+                                {item.settings?.AlexVoice && <div>Alex Voice: {item.settings.AlexVoice}</div>}
+                                {item.settings?.AveryVoice && <div>Avery Voice: {item.settings.AveryVoice}</div>}
+                                {item.settings?.quality && (
+                                  <div>
+                                    Quality: {item.settings.quality === "high" ? "High (Gemini TTS)" : "Low (Edge TTS)"}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {item.status === "completed" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDownload(item)}
-                                title="Download"
-                                className="text-blue-600 hover:text-blue-700"
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
+                              <>
+                                <Button variant="ghost" size="sm" onClick={() => handleDownload(item)} title="Download">
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
+                            {/* Delete Button */}
                             <Button
                               variant="ghost"
                               size="sm"

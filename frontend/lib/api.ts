@@ -1,16 +1,16 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://paperparser.onrender.com"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 export interface GenerationRequest {
   file: File
-  outputType: "presentation" | "Podcast" // Changed from PPT to presentation
+  outputType: "presentation" | "Podcast"
   settings: {
-    voice?: string
-    length: string
-    style?: string
+    // For podcast - only these 3 fields
+    AlexVoice?: string
+    AveryVoice?: string
+    quality?: string
+    // For presentation - only these 2 fields
     template?: string
-    title?: string
-    focusAreas?: string
-    keyPoints?: string
+    length?: string
   }
   userId: string
 }
@@ -40,48 +40,23 @@ export interface GenerationStatus {
 }
 
 export const generateContent = async (request: GenerationRequest): Promise<GenerationResponse> => {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://paperparser.onrender.com"
-  console.log("API URL:", API_URL) // Debug log
-
   const formData = new FormData()
   formData.append("file", request.file)
   formData.append("outputType", request.outputType)
   formData.append("userId", request.userId)
   formData.append("settings", JSON.stringify(request.settings))
 
-  try {
-    console.log("Making request to:", `${API_URL}/api/upload`) // Debug log
+  const response = await fetch(`${API_BASE_URL}/api/upload`, {
+    method: "POST",
+    body: formData,
+  })
 
-    const response = await fetch(`${API_URL}/api/upload`, {
-      method: "POST",
-      body: formData,
-      // Don't set Content-Type header - let browser set it with boundary for FormData
-    })
-
-    console.log("Response status:", response.status) // Debug log
-    console.log("Response headers:", Object.fromEntries(response.headers.entries())) // Debug log
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error("Error response:", errorText) // Debug log
-
-      let error
-      try {
-        error = JSON.parse(errorText)
-      } catch {
-        error = { error: errorText || `HTTP ${response.status}` }
-      }
-
-      throw new Error(error.error || "Failed to generate content")
-    }
-
-    const result = await response.json()
-    console.log("Success response:", result) // Debug log
-    return result
-  } catch (error) {
-    console.error("Fetch error:", error) // Debug log
-    throw error
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Failed to generate content")
   }
+
+  return response.json()
 }
 
 export const getGenerationStatus = async (generationId: string): Promise<GenerationStatus> => {

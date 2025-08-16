@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Upload, Mic, FileText, Download, Volume2, Presentation, Headphones, Sparkles, Zap, Target } from "lucide-react"
@@ -15,7 +13,7 @@ import { Navigation } from "@/components/navigation"
 import { FileUpload } from "@/components/file-upload"
 import { onAuthStateChanged, isSupabaseConfigured } from "@/lib/supabase-safe"
 import { generateContent as apiGenerateContent, pollGenerationStatus, type GenerationStatus } from "@/lib/api"
-import {SetupRequired} from "@/components/setup-required"
+import { SetupRequired } from "@/components/setup-required"
 
 interface GenerationResult {
   type: "podcast" | "presentation"
@@ -24,6 +22,11 @@ interface GenerationResult {
   slides?: number
   downloadUrl: string
   previewUrl?: string
+  Alex_voice?: string
+  Avery_voice?: string
+  quality?: string
+  template?: string
+  length?: string
 }
 
 export default function PaperParserLanding() {
@@ -34,25 +37,21 @@ export default function PaperParserLanding() {
   const [showDashboard, setShowDashboard] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
   const [authLoading, setAuthLoading] = useState(true)
   const [currentGenerationId, setCurrentGenerationId] = useState<string | null>(null)
-  const [/*remove previewingItem*/ /*remove setPreviewingItem*/ ,] = useState<any>(null)
+  const [previewingItem, setPreviewingItem] = useState<any>(null)
+  const [uploadProgress, setUploadProgress] = useState(0) // Declare uploadProgress variable
 
-  // Form states
+  // Form states - simplified to only required fields
   const [podcastSettings, setPodcastSettings] = useState({
-    voice: "",
-    length: "",
-    title: "",
-    focusAreas: "",
+    AlexVoice: "",
+    AveryVoice: "",
+    quality: "",
   })
 
   const [presentationSettings, setPresentationSettings] = useState({
-    style: "",
-    length: "",
     template: "",
-    title: "",
-    keyPoints: "",
+    length: "",
   })
 
   useEffect(() => {
@@ -81,20 +80,23 @@ export default function PaperParserLanding() {
     }
 
     const settings = type === "podcast" ? podcastSettings : presentationSettings
-
-    if (!settings.length) {
-      alert("Please select a length for your content.")
-      return
+    type PodcastSettings = { AlexVoice: string; AveryVoice: string; quality: string };
+    type PresentationSettings = { template: string; length: string };
+    type Settings = PodcastSettings | PresentationSettings;
+    if (type === "podcast") {
+      const podcastSettings = settings as PodcastSettings;
+      if (!podcastSettings.AlexVoice || !podcastSettings.AveryVoice || !podcastSettings.quality) {
+        alert("Please select Alex voice, Avery voice, and quality for your podcast.");
+        return;
+      }
     }
 
-    if (type === "podcast" && !settings.voice) {
-      alert("Please select a voice for your podcast.")
-      return
-    }
-
-    if (type === "presentation" && (!settings.style || !settings.template)) {
-      alert("Please select style and template for your presentation.")
-      return
+    if (type === "presentation") {
+      const presentationSettings = settings as PresentationSettings;
+      if (!presentationSettings.template || !presentationSettings.length) {
+        alert("Please select template and length for your presentation.");
+        return;
+      }
     }
 
     setIsGenerating(true)
@@ -116,9 +118,10 @@ export default function PaperParserLanding() {
       const newResultPlaceholder: GenerationResult & { id: string; status: string } = {
         id: newGenerationId,
         type,
-        title: settings.title || selectedFile.name.replace(".pdf", ""),
+        title: selectedFile.name.replace(".pdf", ""),
         downloadUrl: "",
         status: "processing",
+        ...settings,
       }
       setResults((prev) => [newResultPlaceholder, ...prev])
 
@@ -139,9 +142,9 @@ export default function PaperParserLanding() {
       // Reset form
       setSelectedFile(null)
       if (type === "podcast") {
-        setPodcastSettings({ voice: "", length: "", title: "", focusAreas: "" })
+        setPodcastSettings({ AlexVoice: "", AveryVoice: "", quality: "" })
       } else {
-        setPresentationSettings({ style: "", length: "", template: "", title: "", keyPoints: "" })
+        setPresentationSettings({ template: "", length: "" })
       }
     } catch (error) {
       console.error("Generation failed:", error)
@@ -154,47 +157,24 @@ export default function PaperParserLanding() {
     }
   }
 
-  /*remove handlePreview function
-  const handlePreview = (result: any) => {
-    setPreviewingItem(result)
-  }
-  */
-
-  const handleDownload = async (result: any) => {
-    if (!result.download_url) {
-      alert("Download URL not available")
+  const handleDownload = (result: any) => {
+    if (!result.downloadUrl && !result.download_url) {
+      alert("Download not available")
       return
     }
 
     try {
-      // Create a temporary anchor element to trigger download
+      const downloadUrl = result.downloadUrl || result.download_url
       const link = document.createElement("a")
-      link.href = result.download_url
-
-      // Set the filename based on content type
-      const filename =
-        result.type === "podcast"
-          ? `${result.title.replace(/[^a-z0-9]/gi, "_")}.mp3`
-          : `${result.title.replace(/[^a-z0-9]/gi, "_")}.pptx`
-
-      link.download = filename
+      link.href = downloadUrl
+      link.download = result.type === "podcast" ? `${result.title}.mp3` : `${result.title}.pptx`
       link.target = "_blank"
-
-      // Append to body, click, and remove
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-
-      console.log(`Download initiated for: ${filename}`)
     } catch (error) {
       console.error("Download failed:", error)
-
-      // Fallback: open in new tab
-      try {
-        window.open(result.download_url, "_blank")
-      } catch (fallbackError) {
-        alert("Download failed. Please try again or contact support.")
-      }
+      alert("Download failed. Please try again.")
     }
   }
 
@@ -295,15 +275,15 @@ export default function PaperParserLanding() {
                   <ul className="space-y-2 text-sm text-gray-600">
                     <li className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-green-500" />
-                      Multiple voice options
+                      Multiple Google Gemini voices for Alex and Avery
                     </li>
                     <li className="flex items-center gap-2">
                       <Target className="h-4 w-4 text-green-500" />
-                      Customizable length (Short, Medium, Long)
+                      High and low quality options
                     </li>
                     <li className="flex items-center gap-2">
                       <Volume2 className="h-4 w-4 text-green-500" />
-                      High-quality audio output
+                      Natural conversation format
                     </li>
                   </ul>
                 </CardContent>
@@ -325,7 +305,7 @@ export default function PaperParserLanding() {
                   <ul className="space-y-2 text-sm text-gray-600">
                     <li className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-green-500" />
-                      Formal or informal styles
+                      20 professional templates
                     </li>
                     <li className="flex items-center gap-2">
                       <Target className="h-4 w-4 text-green-500" />
@@ -333,7 +313,7 @@ export default function PaperParserLanding() {
                     </li>
                     <li className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-green-500" />
-                      Professional templates
+                      Academic formatting
                     </li>
                   </ul>
                 </CardContent>
@@ -388,59 +368,80 @@ export default function PaperParserLanding() {
                           <CardDescription>Customize your audio podcast preferences</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                          <div className="grid md:grid-cols-2 gap-6">
+                          <div className="grid md:grid-cols-3 gap-6">
                             <div className="space-y-2">
-                              <Label htmlFor="voice-select">Voice Selection</Label>
+                              <Label htmlFor="Alex-voice">Alex Voice</Label>
                               <Select
-                                value={podcastSettings.voice}
-                                onValueChange={(value) => setPodcastSettings({ ...podcastSettings, voice: value })}
+                                value={podcastSettings.AlexVoice}
+                                onValueChange={(value) => setPodcastSettings({ ...podcastSettings, AlexVoice: value })}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Choose a voice" />
+                                  <SelectValue placeholder="Choose Alex's voice" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="sarah">Sarah (Female, Professional)</SelectItem>
-                                  <SelectItem value="david">David (Male, Warm)</SelectItem>
-                                  <SelectItem value="emma">Emma (Female, Energetic)</SelectItem>
-                                  <SelectItem value="james">James (Male, Authoritative)</SelectItem>
+                                  <SelectItem value="Zephyr">Zephyr (Bright)</SelectItem>
+                                  <SelectItem value="Puck">Puck (Upbeat)</SelectItem>
+                                  <SelectItem value="Charon">Charon (Informative)</SelectItem>
+                                  <SelectItem value="Kore">Kore (Firm)</SelectItem>
+                                  <SelectItem value="Fenrir">Fenrir (Excitable)</SelectItem>
+                                  <SelectItem value="Leda">Leda (Youthful)</SelectItem>
+                                  <SelectItem value="Orus">Orus (Firm)</SelectItem>
+                                  <SelectItem value="Aoede">Aoede (Breezy)</SelectItem>
+                                  <SelectItem value="Callirrhoe">Callirrhoe (Easy-going)</SelectItem>
+                                  <SelectItem value="Autonoe">Autonoe (Bright)</SelectItem>
+                                  <SelectItem value="Enceladus">Enceladus (Breathy)</SelectItem>
+                                  <SelectItem value="Iapetus">Iapetus (Clear)</SelectItem>
+                                  <SelectItem value="Umbriel">Umbriel (Easy-going)</SelectItem>
+                                  <SelectItem value="Algieba">Algieba (Smooth)</SelectItem>
+                                  <SelectItem value="Despina">Despina (Smooth)</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
 
                             <div className="space-y-2">
-                              <Label htmlFor="podcast-length">Podcast Length</Label>
+                              <Label htmlFor="Avery-voice">Avery Voice</Label>
                               <Select
-                                value={podcastSettings.length}
-                                onValueChange={(value) => setPodcastSettings({ ...podcastSettings, length: value })}
+                                value={podcastSettings.AveryVoice}
+                                onValueChange={(value) => setPodcastSettings({ ...podcastSettings, AveryVoice: value })}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select length" />
+                                  <SelectValue placeholder="Choose Avery's voice" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="short">Short (5-10 minutes)</SelectItem>
-                                  <SelectItem value="medium">Medium (15-25 minutes)</SelectItem>
-                                  <SelectItem value="long">Long (30-45 minutes)</SelectItem>
+                                  <SelectItem value="Erinome">Erinome (Clear)</SelectItem>
+                                  <SelectItem value="Algenib">Algenib (Gravelly)</SelectItem>
+                                  <SelectItem value="Rasalgethi">Rasalgethi (Informative)</SelectItem>
+                                  <SelectItem value="Laomedeia">Laomedeia (Upbeat)</SelectItem>
+                                  <SelectItem value="Achernar">Achernar (Soft)</SelectItem>
+                                  <SelectItem value="Alnilam">Alnilam (Firm)</SelectItem>
+                                  <SelectItem value="Schedar">Schedar (Even)</SelectItem>
+                                  <SelectItem value="Gacrux">Gacrux (Mature)</SelectItem>
+                                  <SelectItem value="Pulcherrima">Pulcherrima (Forward)</SelectItem>
+                                  <SelectItem value="Achird">Achird (Friendly)</SelectItem>
+                                  <SelectItem value="Zubenelgenubi">Zubenelgenubi (Casual)</SelectItem>
+                                  <SelectItem value="Vindemiatrix">Vindemiatrix (Gentle)</SelectItem>
+                                  <SelectItem value="Sadachbia">Sadachbia (Lively)</SelectItem>
+                                  <SelectItem value="Sadaltager">Sadaltager (Knowledgeable)</SelectItem>
+                                  <SelectItem value="Sulafat">Sulafat (Warm)</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
-                          </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="podcast-title">Podcast Title (Optional)</Label>
-                            <Input
-                              placeholder="Enter custom title for your podcast"
-                              value={podcastSettings.title}
-                              onChange={(e) => setPodcastSettings({ ...podcastSettings, title: e.target.value })}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="focus-areas">Focus Areas (Optional)</Label>
-                            <Textarea
-                              placeholder="Specify particular sections or topics to emphasize..."
-                              value={podcastSettings.focusAreas}
-                              onChange={(e) => setPodcastSettings({ ...podcastSettings, focusAreas: e.target.value })}
-                            />
+                            <div className="space-y-2">
+                              <Label htmlFor="quality-select">Audio Quality</Label>
+                              <Select
+                                value={podcastSettings.quality}
+                                onValueChange={(value) => setPodcastSettings({ ...podcastSettings, quality: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Choose quality" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="high">High Quality (Gemini TTS)</SelectItem>
+                                  <SelectItem value="low">Low Quality (Edge TTS)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
 
                           <Button
@@ -474,19 +475,22 @@ export default function PaperParserLanding() {
                         <CardContent className="space-y-6">
                           <div className="grid md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                              <Label htmlFor="presentation-style">Presentation Style</Label>
+                              <Label htmlFor="template-number">Template Number</Label>
                               <Select
-                                value={presentationSettings.style}
+                                value={presentationSettings.template}
                                 onValueChange={(value) =>
-                                  setPresentationSettings({ ...presentationSettings, style: value })
+                                  setPresentationSettings({ ...presentationSettings, template: value })
                                 }
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Choose style" />
+                                  <SelectValue placeholder="Choose template (1-20)" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="formal">Formal (Academic/Professional)</SelectItem>
-                                  <SelectItem value="informal">Informal (Casual/Accessible)</SelectItem>
+                                  {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+                                    <SelectItem key={num} value={num.toString()}>
+                                      Template {num}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -509,48 +513,6 @@ export default function PaperParserLanding() {
                                 </SelectContent>
                               </Select>
                             </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="template-choice">Template Choice</Label>
-                            <Select
-                              value={presentationSettings.template}
-                              onValueChange={(value) =>
-                                setPresentationSettings({ ...presentationSettings, template: value })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Choose template" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="modern">Modern (Clean & Minimal)</SelectItem>
-                                <SelectItem value="academic">Academic (Traditional)</SelectItem>
-                                <SelectItem value="creative">Creative (Colorful)</SelectItem>
-                                <SelectItem value="corporate">Corporate (Professional)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="presentation-title">Presentation Title (Optional)</Label>
-                            <Input
-                              placeholder="Enter custom title for your presentation"
-                              value={presentationSettings.title}
-                              onChange={(e) =>
-                                setPresentationSettings({ ...presentationSettings, title: e.target.value })
-                              }
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="key-points">Key Points to Highlight (Optional)</Label>
-                            <Textarea
-                              placeholder="Specify important findings or sections to emphasize..."
-                              value={presentationSettings.keyPoints}
-                              onChange={(e) =>
-                                setPresentationSettings({ ...presentationSettings, keyPoints: e.target.value })
-                              }
-                            />
                           </div>
 
                           <Button
@@ -607,8 +569,8 @@ export default function PaperParserLanding() {
                                   <CardTitle>{result.title}</CardTitle>
                                   <CardDescription>
                                     {result.type === "podcast"
-                                      ? `Duration: ${result.duration || "N/A"}`
-                                      : `${result.slides || "N/A"} slides`}
+                                      ? "Podcast"
+                                      : `${result.slides || result.slide_count || "N/A"} slides`}
                                   </CardDescription>
                                 </div>
                               </div>
@@ -631,39 +593,63 @@ export default function PaperParserLanding() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="flex flex-wrap gap-3">
-                              {result.status === "completed" && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleDownload(result)}
-                                  disabled={!result.download_url}
-                                  className="flex items-center gap-2"
-                                >
-                                  <Download className="h-4 w-4" />
-                                  Download {result.type === "podcast" ? "MP3" : "PPTX"}
-                                </Button>
+                            <div className="space-y-4">
+                              {/* Display detailed information based on content type */}
+                              {result.type === "presentation" && (
+                                <div className="text-sm text-gray-600 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Pages:</span>
+                                    <span>
+                                      {result.length === "short" && "5-8 slides"}
+                                      {result.length === "medium" && "10-15 slides"}
+                                      {result.length === "long" && "20-30 slides"}
+                                      {!result.length && `${result.slides || result.slide_count || "N/A"} slides`}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Template:</span>
+                                    <span>Template {result.template || "N/A"}</span>
+                                  </div>
+                                </div>
                               )}
-                              {result.status === "failed" && (
-                                <p className="text-sm text-red-600">Error: {result.error || "Generation failed."}</p>
+
+                              {result.type === "podcast" && (
+                                <div className="text-sm text-gray-600 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Alex Voice:</span>
+                                    <span>{result.Alex_voice || result.AlexVoice || "N/A"}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Avery Voice:</span>
+                                    <span>{result.Avery_voice || result.AveryVoice || "N/A"}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Audio Quality:</span>
+                                    <span className="capitalize">{result.quality || "N/A"}</span>
+                                  </div>
+                                </div>
                               )}
+
+                              <div className="flex flex-wrap gap-3 pt-2">
+                                {result.status === "completed" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleDownload(result)}
+                                      disabled={!result.downloadUrl && !result.download_url}
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Download {result.type === "podcast" ? "MP3" : "PPTX"}
+                                    </Button>
+                                  </>
+                                )}
+                                {result.status === "failed" && (
+                                  <p className="text-sm text-red-600">Error: {result.error || "Generation failed."}</p>
+                                )}
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
-
-                        {/* Inline Preview Component */}
-                        {/*remove previewingItem && previewingItem.id === result.id && (
-                          <ContentPreview
-                            item={{
-                              id: result.id,
-                              type: result.type,
-                              title: result.title,
-                              download_url: result.downloadUrl,
-                              duration: result.duration,
-                              slides: result.slides,
-                            }}
-                            onClose={() => setPreviewingItem(null)}
-                          />
-                        )*/}
                       </div>
                     ))}
                   </div>
@@ -689,18 +675,18 @@ export default function PaperParserLanding() {
             </p>
             <div className="flex justify-center gap-6 mb-6">
               <a
-                href="https://github.com/yourusername/paperparser"
+                href="https://github.com/P1Manav"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
               >
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.85 3.37 1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.414v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                 </svg>
                 GitHub
               </a>
               <a
-                href="https://linkedin.com/in/yourusername"
+                href="https://www.linkedin.com/in/manavdprajapati/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
@@ -711,7 +697,7 @@ export default function PaperParserLanding() {
                 LinkedIn
               </a>
               <a
-                href="mailto:your.email@example.com"
+                href="mailto:maxprajapati606@gmail.com"
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
