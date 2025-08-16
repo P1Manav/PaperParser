@@ -1,38 +1,36 @@
-# Use Node.js LTS base
+# Base Node.js image
 FROM node:lts
 
-# Install Python 3 and build tools
+# Install Python and build tools for packages like PyMuPDF
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip python3-venv python3-dev build-essential && \
+    apt-get install -y python3 python3-pip python3-venv python3-dev build-essential libmupdf-dev && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy Node.js dependencies first (for caching)
+# Copy Node dependencies first (for caching)
 COPY package*.json ./
 RUN npm install
 
-# Copy Python requirements
+# Copy Python requirements and create virtual environment
 COPY requirements.txt ./
-
-# Create a virtual environment and install Python packages there
 RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install --upgrade pip setuptools wheel && \
     /opt/venv/bin/pip install -r requirements.txt
 
-# Make the venv available globally for all commands
+# Make venv global
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy the rest of the code (Node + Python + static)
+# Copy all backend code (Node + Python scripts)
 COPY . .
 
-# Ensure directories exist (so frontend module doesn't crash)
-RUN mkdir -p static templates outputs images
+# Ensure required directories exist
+RUN mkdir -p static templates outputs uploads
 
-# Expose port (Render uses $PORT)
+# Expose port
 EXPOSE 5000
 
-# Start the backend
+# Start Node.js app
 CMD ["npm", "start"]

@@ -3,7 +3,7 @@ import json
 import os
 import re
 from pptx import Presentation
-import PyMuPDF  # PyMuPDF
+import fitz  # PyMuPDF
 from langchain_community.document_loaders import PyMuPDFLoader
 from google import genai
 from dotenv import load_dotenv
@@ -382,7 +382,7 @@ print("\nPhase-4: All Figures Captions are extracted \n")
 # phase 5 /////////////////////////////////////////
 
 
-with open(r"images\image_captions.json", "r", encoding="utf-8") as f:
+with open(r"images/image_captions.json", "r", encoding="utf-8") as f:
     figure_captions_data = json.load(f)
 
 

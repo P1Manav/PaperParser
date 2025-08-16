@@ -3,11 +3,10 @@ python-dotenv
 requests
 google-genai
 langchain-community
-PyMuPDF
+PyMuPDF==1.26.3
 python-pptx
 Pillow
 edge-tts
 gTTS
 pydub
-asyncio
 aiofiles
