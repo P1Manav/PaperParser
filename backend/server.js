@@ -6,10 +6,7 @@ const { exec } = require("child_process")
 const cors = require("cors")
 const fs = require("fs")
 const { createClient } = require("@supabase/supabase-js")
-
 const app = express()
-
-// Replace the existing CORS setup with this more comprehensive configuration
 const corsOptions = {
   origin: [
     "http://localhost:3000",
@@ -60,9 +57,10 @@ app.use((req, res, next) => {
 
 app.use(express.json())
 
+
 // Supabase configuration
 const supabaseUrl = process.env.SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY // Service role key for server-side operations
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // Validate Supabase configuration
 if (!supabaseUrl || !supabaseServiceKey) {
@@ -71,14 +69,12 @@ if (!supabaseUrl || !supabaseServiceKey) {
   process.exit(1)
 }
 console.log("✅ Supabase configured successfully")
-console.log("📍 Supabase URL:", supabaseUrl)
-console.log("🔑 Service key configured:", !!supabaseServiceKey)
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 // Directory setup
 const uploadDir = path.join(__dirname, "uploads")
-const scriptsDir = path.join(__dirname, "/")
+const scriptsDir = path.join(__dirname, "scripts")
 const outputDir = path.join(__dirname, "outputs")
 
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
@@ -87,7 +83,7 @@ if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true })
 
 app.use("/outputs", express.static(outputDir))
 
-// Multer configuration for local file handling
+// Multer configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir)
@@ -108,19 +104,17 @@ const upload = multer({
   },
 })
 
-// Helper function to get content type
+// Helper functions
 function getContentType(fileName) {
   const ext = path.extname(fileName).toLowerCase()
   const contentTypes = {
     ".pdf": "application/pdf",
     ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ".mp3": "audio/mpeg",
-    ".mp4": "video/mp4",
   }
   return contentTypes[ext] || "application/octet-stream"
 }
 
-// Helper function to upload file to Supabase Storage
 async function uploadToSupabaseStorage(filePath, fileName, bucket = "processed-files") {
   try {
     const fileBuffer = fs.readFileSync(filePath)
@@ -131,16 +125,17 @@ async function uploadToSupabaseStorage(filePath, fileName, bucket = "processed-f
 
     if (error) throw error
 
-    const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(fileName)
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(bucket).getPublicUrl(fileName)
 
-    return publicUrlData.publicUrl
+    return publicUrl
   } catch (error) {
     console.error("Error uploading to Supabase Storage:", error)
     throw error
   }
 }
 
-// Helper function to save generation record to database
 async function saveGenerationRecord(userId, generationData) {
   try {
     const { data, error } = await supabase
@@ -161,7 +156,6 @@ async function saveGenerationRecord(userId, generationData) {
   }
 }
 
-// Helper function to update generation status
 async function updateGenerationStatus(generationId, status, additionalData = {}) {
   try {
     const { data, error } = await supabase
@@ -183,11 +177,9 @@ async function updateGenerationStatus(generationId, status, additionalData = {})
   }
 }
 
-// Helper function to check if stderr contains actual errors vs warnings
 function isActualError(stderr) {
   if (!stderr) return false
 
-  // List of known warnings that should not be treated as errors
   const warningPatterns = [
     /WARNING:/i,
     /grpc_wait_for_shutdown_with_timeout/i,
@@ -197,25 +189,13 @@ function isActualError(stderr) {
     /UserWarning/i,
   ]
 
-  // Check if stderr only contains warnings
   const lines = stderr.split("\n").filter((line) => line.trim())
   const errorLines = lines.filter((line) => {
     return !warningPatterns.some((pattern) => pattern.test(line))
   })
 
-  // If there are non-warning lines, it's likely an actual error
   return errorLines.length > 0
 }
-
-// Test endpoint to verify CORS
-app.get("/api/test", (req, res) => {
-  res.json({
-    message: "CORS is working!",
-    timestamp: new Date().toISOString(),
-    origin: req.headers.origin,
-    method: req.method,
-  })
-})
 
 // Main upload and processing endpoint
 app.post("/api/upload", upload.single("file"), async (req, res) => {
@@ -230,13 +210,10 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
     const { outputType, settings, userId } = req.body
 
     // Validate required fields
-    if (!outputType) {
-      return res.status(400).json({ error: "Output type is required." })
+    if (!outputType || !userId) {
+      return res.status(400).json({ error: "Output type and user ID are required." })
     }
-    if (!userId || userId === "undefined") {
-      return res.status(400).json({ error: "User ID is required and must be valid." })
-    }
-    // Validate UUID format
+
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     if (!uuidRegex.test(userId)) {
       return res.status(400).json({ error: "Invalid user ID format." })
@@ -244,7 +221,7 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
 
     console.log("Processing request for user:", userId, "outputType:", outputType)
 
-    // Parse settings if it's a string
+    // Parse settings
     let parsedSettings = {}
     try {
       parsedSettings = typeof settings === "string" ? JSON.parse(settings) : settings || {}
@@ -260,7 +237,7 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
     // Create initial generation record
     const initialData = {
       type: outputType.toLowerCase(),
-      title: parsedSettings.title || req.file.originalname.replace(".pdf", ""),
+      title: req.file.originalname.replace(".pdf", ""),
       original_file_name: req.file.originalname,
       original_file_url: originalFileUrl,
       status: "processing",
@@ -271,19 +248,16 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
     const generationRecord = await saveGenerationRecord(userId, initialData)
     generationId = generationRecord.id
 
-    // Script mapping
+    // Script mapping - only presentation and podcast
     const scriptMap = {
-      
-      presentation: "python-scripts/generate_ppt.py",
-      Podcast: "generate_podcast.py",
-      "Graphical Abstract": "generate_graphical_abstract.py",
-      Video: "generate_video.py",
+      presentation: "ppt_gen.py",
+      podcast: "generate_podcast.py",
     }
 
-    const scriptName = scriptMap[outputType]
+    const scriptName = scriptMap[outputType.toLowerCase()]
     if (!scriptName) {
       await updateGenerationStatus(generationId, "failed", { error: "Invalid output type" })
-      return res.status(400).json({ error: "Invalid output type." })
+      return res.status(400).json({ error: "Invalid output type. Only 'presentation' and 'podcast' are supported." })
     }
 
     const pathToPythonScript = path.join(scriptsDir, scriptName)
@@ -295,20 +269,30 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
     // Generate output file name
     const timestamp = Date.now()
     const outputFileName =
-      outputType === "presentation"
+      outputType.toLowerCase() === "presentation"
         ? `${userId}/presentation_${timestamp}.pptx`
-        : outputType === "Podcast"
-          ? `${userId}/podcast_${timestamp}.mp3`
-          : `${userId}/output_${timestamp}_${outputType.toLowerCase()}.pdf`
+        : `${userId}/podcast_${timestamp}.mp3`
 
     const localOutputPath = path.join(outputDir, path.basename(outputFileName))
 
     console.log(`Executing ${scriptName} for ${outputType}...`)
 
+    let command = ""
+
+    if (outputType.toLowerCase() === "presentation") {
+      const templateNumber = parsedSettings.template || "1"
+      const length = parsedSettings.length || "medium"
+      command = `python "${pathToPythonScript}" "${uploadedFilePath}" "${localOutputPath}" "${templateNumber}" "${length}"`
+    } else if (outputType.toLowerCase() === "podcast") {
+      const AlexVoice = parsedSettings.AlexVoice || "Kore"
+      const AveryVoice = parsedSettings.AveryVoice || "Puck"
+      const quality = parsedSettings.quality || "low"
+      command = `python "${pathToPythonScript}" "${uploadedFilePath}" "${localOutputPath}" "${AlexVoice}" "${AveryVoice}" "${quality}"`
+    }
+
     // Execute Python script
-    exec(`python "${pathToPythonScript}" "${uploadedFilePath}" "${localOutputPath}"`, async (error, stdout, stderr) => {
+    exec(command, async (error, stdout, stderr) => {
       try {
-        // Check if there's an actual execution error or just warnings in stderr
         const hasActualError = error || isActualError(stderr)
 
         if (hasActualError) {
@@ -320,14 +304,13 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
           return
         }
 
-        // Log warnings but don't treat them as errors
         if (stderr) {
           console.warn("Script warnings:", stderr)
         }
 
         console.log(`Script output:\n${stdout}`)
 
-        // Check if the output file was actually created
+        // Check if the output file was created
         if (!fs.existsSync(localOutputPath)) {
           console.error("Output file was not created:", localOutputPath)
           await updateGenerationStatus(generationId, "failed", {
@@ -344,7 +327,7 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
         const processedFileUrl = await uploadToSupabaseStorage(localOutputPath, outputFileName, "processed-files")
         console.log("File uploaded to Supabase:", processedFileUrl)
 
-        // Get file stats for additional metadata
+        // Get file stats
         const stats = fs.statSync(localOutputPath)
         const fileSizeBytes = stats.size
 
@@ -356,14 +339,14 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
         }
 
         // Add type-specific metadata
-        if (outputType === "Podcast") {
+        if (outputType.toLowerCase() === "podcast") {
           updateData.duration =
             parsedSettings.length === "short"
               ? "5-10 min"
               : parsedSettings.length === "medium"
                 ? "15-25 min"
                 : "30-45 min"
-        } else if (outputType === "presentation") {
+        } else if (outputType.toLowerCase() === "presentation") {
           updateData.slides = parsedSettings.length === "short" ? 8 : parsedSettings.length === "medium" ? 15 : 25
         }
 
@@ -454,7 +437,6 @@ app.delete("/api/generation/:id", async (req, res) => {
     const { id } = req.params
     const { userId } = req.body
 
-    // First get the generation to check ownership and get file URLs
     const { data: generation, error: fetchError } = await supabase
       .from("generations")
       .select("*")
@@ -469,7 +451,6 @@ app.delete("/api/generation/:id", async (req, res) => {
     // Delete files from storage
     try {
       if (generation.original_file_url) {
-        // Extract path from URL: e.g., "https://<project-id>.supabase.co/storage/v1/object/public/uploads/user-id/filename.pdf"
         const originalPath = generation.original_file_url.split("public/uploads/")[1]
         if (originalPath) {
           await supabase.storage.from("uploads").remove([originalPath])
@@ -507,17 +488,21 @@ app.get("/api/health", (req, res) => {
 })
 
 const PORT = process.env.PORT || 5000
+const backendUrl = process.env.RENDER_EXTERNAL_HOSTNAME
+  ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
+  : `http://localhost:${PORT}`
+
 app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on http://localhost:${PORT}`)
+  console.log(`🚀 Backend server running on ${backendUrl}`)
   console.log(`✅ Supabase configured: ${!!supabaseUrl}`)
 })
 
-// const PING_INTERVAL = 40 * 1000 // 40 seconds
+// Self-ping to keep server warm
+//const PING_INTERVAL = 40 * 1000 // 40 seconds
 
-// setInterval(() => {
-//   const backendUrl = `https://paperparser.onrender.com` 
-//   fetch(`${backendUrl}/api/health`)
-//     .then((res) => res.json())
-//     .then((data) => console.log(`Self-ping successful: ${data.status} at ${new Date().toISOString()}`))
-//     .catch((err) => console.error(`Self-ping failed: ${err.message} at ${new Date().toISOString()}`))
-// }, PING_INTERVAL)
+//setInterval(() => {
+//  fetch(`${backendUrl}/api/health`)
+//    .then((res) => res.json())
+//    .then((data) => console.log(`Self-ping successful: ${data.status} at ${new Date().toISOString()}`))
+//    .catch((err) => console.error(`Self-ping failed: ${err.message} at ${new Date().toISOString()}`))
+//}, PING_INTERVAL)

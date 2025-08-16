@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create custom types
-CREATE TYPE generation_type AS ENUM ('podcast', 'presentation', 'graphical_abstract', 'video');
+CREATE TYPE generation_type AS ENUM ('podcast', 'presentation');
 CREATE TYPE generation_status AS ENUM ('processing', 'completed', 'failed');
 
 -- Create generations table

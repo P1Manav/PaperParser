@@ -4,9 +4,8 @@ import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Paperparser',
-  description: 'Created in MineD',
-  generator: 'P_Manav | P_Bhaumil | G_Tirth | D_kavan',
+  title: 'PaperParser',
+  description: 'Created by P1Manav | Bhaumil111 | Tirth1410',
 }
 
 export default function RootLayout({

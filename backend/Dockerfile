@@ -1,26 +1,35 @@
-# Use a base image with Node.js and Python
-FROM node:18-bullseye
+# Use Node.js LTS base
+FROM node:lts
 
-# Install Python
+# Install Python and build tools
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    ln -s /usr/bin/python3 /usr/bin/python
+    apt-get install -y python3 python3-pip python3-venv python3-dev build-essential && \
+    ln -s /usr/bin/python3 /usr/bin/python && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /app
 
-# Copy package.json and install Node.js deps
+# Copy Node deps first (cache layer)
 COPY package*.json ./
 RUN npm install
 
-# Copy the rest of the code (including .py files and uploads folder)
+# Copy Python requirements
+COPY requirements.txt ./
+
+# Create Python venv and install requirements
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install -r requirements.txt
+
+# Make venv available to all future commands
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy the rest of the code
 COPY . .
 
-# Install Python dependencies
-RUN pip install -r requirements.txt
-
-# Expose the backend port (update if your app uses another)
+# Expose port (Render uses $PORT)
 EXPOSE 5000
 
-# Start your backend
+# Start the backend
 CMD ["npm", "start"]
