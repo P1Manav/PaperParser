@@ -1,10 +1,9 @@
 PyPDF2
 python-dotenv
 requests
-google-generativeai
+google-genai
 langchain-community
 PyMuPDF
-fitz
 python-pptx
 Pillow
 edge-tts

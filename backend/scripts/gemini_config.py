@@ -6,7 +6,7 @@ import tempfile
 from typing import List, Dict
 import time
 from google.genai.errors import ClientError
-import fitz  # PyMuPDF
+import PyMuPDF  # PyMuPDF
 from google import genai
 
 from voice import (

@@ -3,7 +3,7 @@ import json
 import os
 import re
 from pptx import Presentation
-import fitz  # PyMuPDF
+import PyMuPDF  # PyMuPDF
 from langchain_community.document_loaders import PyMuPDFLoader
 from google import genai
 from dotenv import load_dotenv
