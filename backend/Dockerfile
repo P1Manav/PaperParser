@@ -1,26 +1,38 @@
-# Use a base image with Node.js and Python
+# Use Node.js LTS base
 FROM node:lts
 
-# Install Python
+# Install Python 3 and build tools
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    ln -s /usr/bin/python3 /usr/bin/python
+    apt-get install -y python3 python3-pip python3-venv python3-dev build-essential && \
+    ln -s /usr/bin/python3 /usr/bin/python && \
+    rm -rf /var/lib/apt/lists/*
 
-# Create app directory
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and install Node.js deps
+# Copy Node.js dependencies first (for caching)
 COPY package*.json ./
 RUN npm install
 
-# Copy the rest of the code (including .py files and uploads folder)
+# Copy Python requirements
+COPY requirements.txt ./
+
+# Create a virtual environment and install Python packages there
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install -r requirements.txt
+
+# Make the venv available globally for all commands
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy the rest of the code (Node + Python + static)
 COPY . .
 
-# Install Python dependencies
-RUN pip install -r requirements.txt
+# Ensure directories exist (so frontend module doesn't crash)
+RUN mkdir -p static templates outputs images
 
-# Expose the backend port (update if your app uses another)
+# Expose port (Render uses $PORT)
 EXPOSE 5000
 
-# Start your backend
+# Start the backend
 CMD ["npm", "start"]
