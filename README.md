@@ -55,7 +55,7 @@ To set up the PaperParser project locally, follow these steps:
      ```
    - **Install Dependencies:**  
      ```bash
-     npm install
+     npm yarn install
      ```
    - **Start the React Development Server:**  
      ```bash
