@@ -266,7 +266,7 @@ export default function PaperParserLanding() {
                       <Headphones className="h-6 w-6 text-blue-600" />
                     </div>
                     <div>
-                      <CardTitle>🎧 Podcast Generation</CardTitle>
+                      <CardTitle> Podcast Generation</CardTitle>
                       <CardDescription>Convert papers into audio podcasts</CardDescription>
                     </div>
                   </div>
@@ -296,7 +296,7 @@ export default function PaperParserLanding() {
                       <Presentation className="h-6 w-6 text-purple-600" />
                     </div>
                     <div>
-                      <CardTitle>📊 Presentation Creation</CardTitle>
+                      <CardTitle> Presentation Creation</CardTitle>
                       <CardDescription>Generate PowerPoint presentations</CardDescription>
                     </div>
                   </div>
