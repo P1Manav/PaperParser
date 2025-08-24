@@ -1,12 +1,14 @@
 PyPDF2
 python-dotenv
 requests
-google-genai
+google-generativeai
 langchain-community
-PyMuPDF==1.26.3
+PyMuPDF
+fitz
 python-pptx
 Pillow
 edge-tts
 gTTS
 pydub
+asyncio
 aiofiles

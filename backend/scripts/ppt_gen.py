@@ -382,7 +382,7 @@ print("\nPhase-4: All Figures Captions are extracted \n")
 # phase 5 /////////////////////////////////////////
 
 
-with open(r"images/image_captions.json", "r", encoding="utf-8") as f:
+with open(r"images\image_captions.json", "r", encoding="utf-8") as f:
     figure_captions_data = json.load(f)
 
 

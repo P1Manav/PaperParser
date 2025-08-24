@@ -1,36 +1,56 @@
-# Base Node.js image
+# -----------------------------
+# Base image: Node.js LTS
+# -----------------------------
 FROM node:lts
 
-# Install Python and build tools for packages like PyMuPDF
+# -----------------------------
+# Install Python and build tools
+# -----------------------------
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip python3-venv python3-dev build-essential libmupdf-dev && \
+    apt-get install -y python3 python3-pip python3-venv python3-dev build-essential && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     rm -rf /var/lib/apt/lists/*
 
+# -----------------------------
 # Set working directory
+# -----------------------------
 WORKDIR /app
 
-# Copy Node dependencies first (for caching)
+# -----------------------------
+# Copy Node dependencies first (cache layer)
+# -----------------------------
 COPY package*.json ./
 RUN npm install
 
-# Copy Python requirements and create virtual environment
+# -----------------------------
+# Copy Python requirements
+# -----------------------------
 COPY requirements.txt ./
+
+# -----------------------------
+# Create Python venv and install requirements
+# -----------------------------
 RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip setuptools wheel && \
+    /opt/venv/bin/pip install --upgrade pip && \
     /opt/venv/bin/pip install -r requirements.txt
 
-# Make venv global
+# -----------------------------
+# Make venv available globally
+# -----------------------------
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy all backend code (Node + Python scripts)
+# -----------------------------
+# Copy only backend code
+# Exclude frontend and other unnecessary files
+# -----------------------------
 COPY . .
 
-# Ensure required directories exist
-RUN mkdir -p static templates outputs uploads
-
-# Expose port
+# -----------------------------
+# Expose port (Render uses $PORT)
+# -----------------------------
 EXPOSE 5000
 
-# Start Node.js app
+# -----------------------------
+# Start backend
+# -----------------------------
 CMD ["npm", "start"]
