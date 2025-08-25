@@ -1,56 +1,39 @@
-# -----------------------------
-# Base image: Node.js LTS
-# -----------------------------
-FROM node:lts
+FROM python:3.11-slim
 
-# -----------------------------
-# Install Python and build tools
-# -----------------------------
+# Install system dependencies
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip python3-venv python3-dev build-essential && \
-    ln -s /usr/bin/python3 /usr/bin/python && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# -----------------------------
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs
+
 # Set working directory
-# -----------------------------
 WORKDIR /app
 
-# -----------------------------
-# Copy Node dependencies first (cache layer)
-# -----------------------------
+# Copy and install Python requirements first (for better caching)
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy and install Node.js dependencies
 COPY package*.json ./
 RUN npm install
 
-# -----------------------------
-# Copy Python requirements
-# -----------------------------
-COPY requirements.txt ./
-
-# -----------------------------
-# Create Python venv and install requirements
-# -----------------------------
-RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install -r requirements.txt
-
-# -----------------------------
-# Make venv available globally
-# -----------------------------
-ENV PATH="/opt/venv/bin:$PATH"
-
-# -----------------------------
-# Copy only backend code
-# Exclude frontend and other unnecessary files
-# -----------------------------
+# Copy application code
 COPY . .
 
-# -----------------------------
-# Expose port (Render uses $PORT)
-# -----------------------------
+# Create necessary directories
+RUN mkdir -p uploads outputs images templates scripts/templates
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV NODE_ENV=production
+
+# Expose port
 EXPOSE 5000
 
-# -----------------------------
-# Start backend
-# -----------------------------
+# Start command
 CMD ["npm", "start"]
