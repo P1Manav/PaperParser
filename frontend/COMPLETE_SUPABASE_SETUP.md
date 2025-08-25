@@ -69,10 +69,10 @@
    - Go to Credentials → Create Credentials → OAuth 2.0 Client IDs
    - Application type: Web application
    - Authorized redirect URIs:
-     \`\`\`
+     ```
      https://your-project-id.supabase.co/auth/v1/callback
      http://localhost:3000/auth/callback
-     \`\`\`
+     ```
    - Copy Client ID and Client Secret
 
 3. **Add Credentials to Supabase**
@@ -84,13 +84,13 @@
 ### Step 6: Set Up Backend Environment
 
 1. **Create Backend .env File**
-   \`\`\`bash
+   ```bash
    cd backend
    touch .env
-   \`\`\`
+   ```
 
 2. **Add Environment Variables**
-   \`\`\`env
+   ```env
    # Supabase Configuration
    SUPABASE_URL=https://your-project-id.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
@@ -98,50 +98,50 @@
    # Server Configuration
    PORT=5000
    NODE_ENV=development
-   \`\`\`
+   ```
 
 3. **Install Backend Dependencies**
-   \`\`\`bash
+   ```bash
    npm install
-   \`\`\`
+   ```
 
 ### Step 7: Set Up Frontend Environment
 
 1. **Create Frontend .env.local File**
-   \`\`\`bash
+   ```bash
    cd frontend  # or your Next.js project root
    touch .env.local
-   \`\`\`
+   ```
 
 2. **Add Environment Variables**
-   \`\`\`env
+   ```env
    # Supabase Configuration
    NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
    
    # Backend API URL
    NEXT_PUBLIC_API_URL=http://localhost:5000
-   \`\`\`
+   ```
 
 ### Step 8: Install Frontend Dependencies
 
-\`\`\`bash
+```bash
 npm install @supabase/supabase-js
-\`\`\`
+```
 
 ### Step 9: Test the Setup
 
 1. **Start Backend Server**
-   \`\`\`bash
+   ```bash
    cd backend
-   npm run dev
-   \`\`\`
+   node server.js
+   ```
 
 2. **Start Frontend Server**
-   \`\`\`bash
+   ```bash
    cd frontend
    npm run dev
-   \`\`\`
+   ```
 
 3. **Test Authentication**
    - Go to `http://localhost:3000`
@@ -157,7 +157,7 @@ npm install @supabase/supabase-js
 
 In Supabase SQL Editor, run these queries to verify setup:
 
-\`\`\`sql
+```sql
 -- Check if tables exist
 SELECT table_name FROM information_schema.tables 
 WHERE table_schema = 'public';
@@ -172,7 +172,7 @@ WHERE schemaname = 'public';
 
 -- Test user profile creation
 SELECT * FROM user_profiles LIMIT 5;
-\`\`\`
+```
 
 ## 🗂️ Database Schema Overview
 
@@ -251,14 +251,14 @@ SELECT * FROM user_profiles LIMIT 5;
 
 ### Debug Commands:
 
-\`\`\`bash
+```bash
 # Check backend health
 curl http://localhost:5000/api/health
 
 # Check environment variables
 echo $SUPABASE_URL
 echo $NEXT_PUBLIC_SUPABASE_URL
-\`\`\`
+```
 
 ## 🎯 Next Steps
 
