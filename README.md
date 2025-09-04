@@ -1,81 +1,116 @@
-# 📝🎧 PaperParser  
+# 📄🎙️ PaperParser  
 
-**PaperParser** is an innovative tool designed to transform academic research papers into accessible formats such as **podcasts** 🎧 and **PowerPoint presentations** 📊. By leveraging advanced language models and text-to-speech technologies, PaperParser aims to make scholarly content more digestible and engaging for a broader audience.  
-
-## 🚀 Features  
-
-- **🎧 Podcast Generation:** Converts academic papers into audio podcasts, allowing users to listen to research content on the go.  
-- **📊 Presentation Creation:** Automatically generates PowerPoint presentations summarizing key points from academic papers, facilitating easier comprehension and sharing.  
-
-## 🛠️ Technologies Used  
-
-### **Backend:**  
-- 🌐 **Node.js:** Core programming language for backend development.  
-- 🛠️ **Express.js:** Web framework used to build the API.  
-- 💙 **gTTS (Google Text-to-Speech):** Converts text extracted from papers into speech for podcast generation.  
-- 📝 **PDF Parsing Library:** Extracts text from PDF documents.  
-- 🖼️ **PPTX Generator:** Creates PowerPoint presentations programmatically.  
-- 🧠 **LangChain:** Facilitates interactions with language models to generate summaries and content.  
-
-### **Frontend:**  
-- ⚛️ **React.js:** JavaScript library for building user interfaces.  
-- 🔷 **TypeScript:** Enhances JavaScript with static typing for improved developer experience.  
-- 🎨 **CSS:** Styles the frontend components for a responsive and visually appealing design.  
-
-## 🏧 Installation  
-
-To set up the PaperParser project locally, follow these steps:  
-
-1. **👅 Clone the Repository:**  
-   ```bash
-   git clone https://github.com/P1Manav/PaperParser.git
-   ```
-2. **📂 Navigate to the Project Directory:**  
-   ```bash
-   cd PaperParser
-   ```
-3. **🌟 Backend Setup:**  
-   - **Navigate to the Backend Directory:**  
-     ```bash
-     cd backend
-     ```
-   - **Install Dependencies:**  
-     ```bash
-     pip install -r requirements.txt
-     ```
-   - **Run the Backend Server:**  
-     ```bash
-     node server.js
-     ```
-
-4. **🌈 Frontend Setup:**  
-   - **Navigate to the Frontend Directory:**  
-     ```bash
-     cd frontend
-     ```
-   - **Install Dependencies:**  
-     ```bash
-     npm yarn install
-     ```
-   - **Start the React Development Server:**  
-     ```bash
-     npm run dev
-     ```
-
-## 🎯 Usage  
-
-1. **📝 Upload a PDF:** Use the web interface to upload an academic paper in PDF format.  
-2. **⚙️ Select Output Format:** Choose between generating a podcast or a PowerPoint presentation.  
-3. **📅 Download or Stream:** Once processed, download the generated presentation or stream the podcast directly from the application.  
-
-## 🙌 Acknowledgments  
-
-Special thanks to the open-source community and the developers of the libraries and frameworks used in this project.  
-
-## 📌 Contributing  
-
-We welcome contributions! Feel free to open **issues** and **pull requests** to improve the project.  
+**PaperParser** transforms academic research papers into **podcasts** 🎧 and **PowerPoint presentations** 📊.  
+By combining **AI summarization** and automated content generation, it makes scholarly content easier to consume and share.  
 
 ---
 
-🎉 **Happy Parsing!** 🚀  
+## 🚀 Features  
+
+- 🎧 **Podcast Generation** – Listen to research papers in audio format  
+- 📊 **Presentation Creation** – Auto-generate slide decks with key insights  
+- 📄 **PDF Parsing** – Extract text and structure from uploaded research papers  
+- ☁️ **Cloud Integration** – Secure storage and authentication with Supabase  
+
+---
+
+## 🛠️ Technologies Used  
+
+### 🔙 Backend  
+- ⚡ **Node.js + Express.js** – Core API server  
+- 🧠 **Gemini API** – Summarization and content generation  
+- 📄 **PyMuPDF** – High-quality PDF text parsing  
+- ☁️ **Supabase** – Database + authentication layer  
+- 🐳 **Docker** – Containerized backend for easy deployment  
+
+### 🎨 Frontend  
+- ⚛️ **Next.js (React + TypeScript)** – Modern frontend framework  
+- 🌀 **Tailwind CSS** – Utility-first styling for responsive UI  
+
+---
+
+## ⚙️ Installation  
+
+### 1️⃣ Clone the Repository  
+```bash
+git clone https://github.com/P1Manav/PaperParser.git
+cd PaperParser
+```
+
+---
+
+### 2️⃣ Backend Setup (Dockerized 🐳)  
+
+Navigate to backend:  
+```bash
+cd backend
+```
+
+Create a `.env` file (sample):  
+```env
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+GEMINI_API_KEY=
+google_api_key=
+PORT=5000
+NODE_ENV=
+```
+
+Build Docker image:  
+```bash
+docker build -t paperparser_image .
+```
+
+Run the container:  
+```bash
+docker run --env-file .env -p 5000:5000 --name paperparser_container paperparser_image
+```
+
+📌 Backend runs at: [http://localhost:5000](http://localhost:5000)  
+
+---
+
+### 3️⃣ Frontend Setup  
+
+Navigate to frontend:  
+```bash
+cd ../frontend
+```
+
+Create `.env.local` file (sample):  
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+GEMINI_API_KEY=
+NEXT_PUBLIC_API_URL=http://localhost:5000
+```
+
+Install dependencies:  
+```bash
+npx yarn install
+```
+
+Run development server:  
+```bash
+npx yarn dev
+```
+
+📌 Frontend runs at: [http://localhost:3000](http://localhost:3000)  
+
+---
+
+## 🎯 Usage  
+
+1. 📄 Upload a PDF in the frontend  
+2. ⚙️ Choose output → Podcast 🎧 or Presentation 📊  
+3. ⬇️ Download or play the result directly  
+
+---
+
+## 🤝 Contributing  
+
+Contributions are welcome! 🚀  
+- Open an **issue** for bugs or feature requests  
+- Submit a **PR** to help improve PaperParser  
+
+---
