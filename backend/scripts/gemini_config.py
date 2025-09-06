@@ -15,9 +15,9 @@ try:
     from google import genai
     from google.genai import types
     try:
-        api_key = os.getenv('GEMINI_API_KEY')
+        api_key = os.getenv('GOOGLE_API_KEY')
         if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set")
+            raise ValueError("GOOGLE_API_KEY environment variable not set")
         client = genai.Client(api_key=api_key)
     except Exception as e:
         print(f"Warning: Could not initialize Gemini client: {e}")
