@@ -1,27 +1,35 @@
-FROM node:lts-alpine
+# Use Node.js LTS base
+FROM node:lts
 
-# Install Python, pip, and system dependencies
-RUN apk add --no-cache python3 py3-pip ffmpeg
+# Install Python and build tools
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip python3-venv python3-dev build-essential && \
+    ln -s /usr/bin/python3 /usr/bin/python && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Create app directory
 WORKDIR /app
 
-# Copy package files
+# Copy Node deps first (cache layer)
 COPY package*.json ./
+RUN npm install
 
-# Install Node.js dependencies
-RUN npm ci --only=production
-
-# Copy Python requirements and install
+# Copy Python requirements
 COPY requirements.txt ./
-RUN pip3 install -r requirements.txt
 
-# Create necessary directories
-RUN mkdir -p uploads outputs images
+# Create Python venv and install requirements
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install -r requirements.txt
 
-# Copy application code
+# Make venv available to all future commands
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy the rest of the code
 COPY . .
 
+# Expose port (Render uses $PORT)
 EXPOSE 5000
 
-CMD ["node", "server.js"]
+# Start the backend
+CMD ["npm", "start"]
