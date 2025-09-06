@@ -54,7 +54,7 @@ def main():
 
         # 2) Split into chunks
         print(" Splitting text into chunks...")
-        chunks = split_into_chunks(paper_text, max_chars=3000)
+        chunks = split_into_chunks(paper_text, max_chars=8000)
 
         # 3) Summarize with Gemini
         print(" Summarizing with Gemini...")

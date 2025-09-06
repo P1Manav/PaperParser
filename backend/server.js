@@ -64,11 +64,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // Validate Supabase configuration
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error("❌ Missing Supabase configuration!")
+  console.error(" Missing Supabase configuration!")
   console.error("Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env file")
   process.exit(1)
 }
-console.log("✅ Supabase configured successfully")
+console.log(" Supabase configured successfully")
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -493,8 +493,8 @@ const backendUrl = process.env.RENDER_EXTERNAL_HOSTNAME
   : `http://localhost:${PORT}`
 
 app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on ${backendUrl}`)
-  console.log(`✅ Supabase configured: ${!!supabaseUrl}`)
+  console.log(` Backend server running on ${backendUrl}`)
+  console.log(` Supabase configured: ${!!supabaseUrl}`)
 })
 
 // Self-ping to keep server warm

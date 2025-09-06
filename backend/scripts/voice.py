@@ -27,36 +27,36 @@ except ImportError:
 
 # ---------- Voice mapping (Gemini label -> Edge TTS voice id) ----------
 EDGE_TTS_VOICE_MAP = {
-    "Zephyr": "en-US-GuyNeural",
-    "Puck": "en-US-GuyNeural",
-    "Charon": "en-US-GuyNeural",
-    "Kore": "en-US-JennyNeural",
-    "Fenrir": "en-US-GuyNeural",
-    "Leda": "en-US-JennyNeural",
-    "Orus": "en-US-GuyNeural",
-    "Aoede": "en-US-JennyNeural",
-    "Callirrhoe": "en-US-JennyNeural",
-    "Autonoe": "en-US-JennyNeural",
-    "Enceladus": "en-US-JennyNeural",
-    "Iapetus": "en-US-GuyNeural",
-    "Umbriel": "en-US-GuyNeural",
-    "Algieba": "en-US-JennyNeural",
-    "Despina": "en-US-JennyNeural",
-    "Erinome": "en-US-JennyNeural",
-    "Algenib": "en-US-GuyNeural",
-    "Rasalgethi": "en-US-GuyNeural",
-    "Laomedeia": "en-US-JennyNeural",
-    "Achernar": "en-US-JennyNeural",
-    "Alnilam": "en-US-GuyNeural",
-    "Schedar": "en-US-GuyNeural",
-    "Gacrux": "en-US-GuyNeural",
-    "Pulcherrima": "en-US-GuyNeural",
-    "Achird": "en-US-JennyNeural",
-    "Zubenelgenubi": "en-US-GuyNeural",
-    "Vindemiatrix": "en-US-JennyNeural",
-    "Sadachbia": "en-US-GuyNeural",
-    "Sadaltager": "en-US-GuyNeural",
-    "Sulafat": "en-US-JennyNeural",
+    "zephyr": "en-US-GuyNeural",
+    "puck": "en-US-GuyNeural",
+    "charon": "en-US-GuyNeural",
+    "kore": "en-US-JennyNeural",
+    "fenrir": "en-US-GuyNeural",
+    "leda": "en-US-JennyNeural",
+    "orus": "en-US-GuyNeural",
+    "aoede": "en-US-JennyNeural",
+    "callirrhoe": "en-US-JennyNeural",
+    "autonoe": "en-US-JennyNeural",
+    "enceladus": "en-US-JennyNeural",
+    "iapetus": "en-US-GuyNeural",
+    "umbriel": "en-US-GuyNeural",
+    "algieba": "en-US-JennyNeural",
+    "despina": "en-US-JennyNeural",
+    "erinome": "en-US-JennyNeural",
+    "algenib": "en-US-GuyNeural",
+    "rasalgethi": "en-US-GuyNeural",
+    "laomedeia": "en-US-JennyNeural",
+    "achernar": "en-US-JennyNeural",
+    "alnilam": "en-US-GuyNeural",
+    "schedar": "en-US-GuyNeural",
+    "gacrux": "en-US-GuyNeural",
+    "pulcherrima": "en-US-GuyNeural",
+    "achird": "en-US-JennyNeural",
+    "zubenelgenubi": "en-US-GuyNeural",
+    "vindemiatrix": "en-US-JennyNeural",
+    "sadachbia": "en-US-GuyNeural",
+    "sadaltager": "en-US-GuyNeural",
+    "sulafat": "en-US-JennyNeural",
 }
 
 def normalize_voice_name(voice_label: str) -> str:
@@ -79,7 +79,7 @@ async def tts_edge_single_speaker(text: str, voice_label: str, output_file: str)
         raise ValueError("Empty text provided for TTS")
     
     base = normalize_voice_name(voice_label)
-    mapped = EDGE_TTS_VOICE_MAP.get(base)
+    mapped = EDGE_TTS_VOICE_MAP.get(base.lower())
     
     if not mapped:
         # Fallback to default voices
@@ -198,7 +198,7 @@ async def tts_gemini_multi_speaker(conversation_text: str,
         
         # Generate content using the new SDK
         response = client.models.generate_content(
-            model='gemini-2.0-flash-exp-tts',
+            model='gemini-2.5-flash-preview-tts',
             contents=conversation_text,
             config=types.GenerateContentConfig(
                 response_modalities=["AUDIO"],

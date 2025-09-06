@@ -28,7 +28,7 @@ except ImportError as e:
 load_dotenv()
 
 # ---------- Gemini client setup ----------
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") 
 
 if not GOOGLE_API_KEY:
     raise EnvironmentError("GOOGLE_API_KEY or GEMINI_API_KEY not found in environment variables.")
@@ -36,7 +36,7 @@ if not GOOGLE_API_KEY:
 # Initialize Gemini client
 genai.configure(api_key=GOOGLE_API_KEY)
 
-def get_model(model_name="gemini-2.0-flash-exp"):
+def get_model(model_name="gemini-2.5-pro"):
     """Get Gemini model with fallback options"""
     try:
         return genai.GenerativeModel(model_name)
@@ -45,7 +45,7 @@ def get_model(model_name="gemini-2.0-flash-exp"):
         return genai.GenerativeModel("gemini-1.5-flash")
 
 # ---------- Text generation helper ----------
-def _gen_model_text(prompt, model_name="gemini-2.0-flash-exp", temperature=0.5, max_retries=3):
+def _gen_model_text(prompt, model_name="gemini-2.5-pro", temperature=0.5, max_retries=3):
     """Generate text with retry logic and better error handling"""
     for attempt in range(max_retries):
         try:
@@ -140,7 +140,7 @@ SECTION:
 {chunk}
 """
         try:
-            summary = _gen_model_text(prompt, model_name="gemini-2.0-flash-exp", temperature=0.5)
+            summary = _gen_model_text(prompt, model_name="gemini-2.5-pro", temperature=0.5)
             if summary.strip():
                 summaries.append(summary)
         except Exception as e:
@@ -162,7 +162,7 @@ Write it as if preparing detailed notes for a podcast discussion:
 SUMMARIES:
 {combined}
 """
-    return _gen_model_text(compress_prompt, model_name="gemini-2.0-flash-exp", temperature=0.4)
+    return _gen_model_text(compress_prompt, model_name="gemini-2.5-pro", temperature=0.4)
 
 # ---------- conversation JSON ----------
 CONVO_PROMPT_TEMPLATE = """
@@ -217,28 +217,31 @@ def build_conversation_json(summary: str) -> List[Dict[str, str]]:
     if not summary.strip():
         raise ValueError("Empty summary provided")
     
+    raw = None   # ensure variable is always defined
+
     # 1st attempt
     try:
         raw = _gen_model_text(
             CONVO_PROMPT_TEMPLATE.format(summary=summary), 
-            model_name="gemini-2.0-flash-exp", 
+            model_name="gemini-2.5-pro", 
             temperature=0.5
         )
         return _try_parse_json_array(raw)
     except Exception as e:
         print(f"First attempt failed: {e}")
 
-    # Try to extract JSON array substring
-    try:
-        m = re.search(r'\[.*\]', raw, flags=re.DOTALL)
-        if m:
-            return _try_parse_json_array(m.group(0))
-    except Exception as e:
-        print(f"JSON extraction failed: {e}")
+    # Try to extract JSON array substring if we have raw text
+    if raw:
+        try:
+            m = re.search(r'\[.*\]', raw, flags=re.DOTALL)
+            if m:
+                return _try_parse_json_array(m.group(0))
+        except Exception as e:
+            print(f"JSON extraction failed: {e}")
 
-    # Last-chance repair prompt
-    try:
-        repair_prompt = f"""
+        # Last-chance repair
+        try:
+            repair_prompt = f"""
 You produced JSON-like text but it was invalid.
 Rewrite the following so that it is ONLY a valid JSON array of objects with exactly:
   - "speaker": "Alex" or "Avery"
@@ -248,11 +251,16 @@ No commentary. No Markdown. Just the JSON array.
 INPUT:
 {raw}
 """
-        repaired = _gen_model_text(repair_prompt, model_name="gemini-2.0-flash-exp", temperature=0.0)
-        return _try_parse_json_array(repaired)
-    except Exception as e:
-        print(f"Repair attempt failed: {e}")
-        raise Exception("Failed to generate valid conversation JSON after all attempts")
+            repaired = _gen_model_text(
+                repair_prompt, 
+                model_name="gemini-2.5-pro", 
+                temperature=0.0
+            )
+            return _try_parse_json_array(repaired)
+        except Exception as e:
+            print(f"Repair attempt failed: {e}")
+
+    raise Exception("Failed to generate valid conversation JSON after all attempts")
 
 def save_conversation_json(conversation: List[Dict[str, str]], json_path: str) -> None:
     """Save conversation JSON with error handling"""
