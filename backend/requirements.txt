@@ -7,6 +7,7 @@ PyMuPDF==1.23.22   # provides fitz (used in gemini_config.py & ppt_gen.py)
 # Google Gemini SDK + core
 google-generativeai==0.8.3
 google-api-core==2.15.0
+google-genai==1.36.0
 
 # PowerPoint generation
 python-pptx==0.6.23
