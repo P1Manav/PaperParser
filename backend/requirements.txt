@@ -1,36 +1,7 @@
-# Environment management
 python-dotenv==1.0.0
-
-# PDF handling
-PyMuPDF==1.23.22   # provides fitz (used in gemini_config.py & ppt_gen.py)
-
-# Google Gemini SDK + core
-google-generativeai==0.8.3
-google-api-core==2.15.0
-google-genai==1.26.0
-
-# PowerPoint generation
+PyMuPDF==1.23.17
 python-pptx==0.6.23
 Pillow==10.4.0
-
-# LangChain community loaders
-langchain-community==0.3.7
+langchain-community==0.3.7 
 langchain-core==0.3.33
-
-# Text-to-speech (low quality)
-edge-tts==6.1.12
-
-# Audio processing (for merging MP3 files)
-pydub==0.25.1
-
-# Optional helpers (needed by pydub/tts)
-ffmpeg-python==0.2.0
-typing-extensions==4.8.0
-
-# Networking (required by some async modules and langchain)
-httpx==0.27.2
-websockets==12.0
-
-# Core Python libraries (usually included but explicit for Docker)
-pathlib2==2.3.7
-asyncio-mqtt==0.16.2
+google-genai==1.2.0

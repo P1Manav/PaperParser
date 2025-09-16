@@ -27,6 +27,7 @@ length_of_ppt = sys.argv[4]     # e.g. "short" | "medium" | "long"
 # Template path inside scripts/templates
 template_path = os.path.join(os.path.dirname(__file__), "templates", f"{template_number}.pptx")
 
+json_path = os.path.join("images", "image_captions.json")
 
 def make_ppt_from_data(template_path: str):
     pre = Presentation(template_path)
@@ -228,7 +229,7 @@ def extract_combined_images_with_captions(file_path: str):
             image_id += 1
 
     # Step 7: Save all captions to JSON
-    with open("images/image_captions.json", "w", encoding="utf-8") as f:
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump(image_caption_map, f, indent=2, ensure_ascii=False)
 
     # print("\n All grouped images and captions saved successfully in 'images/'")
@@ -382,7 +383,7 @@ print("\nPhase-4: All Figures Captions are extracted \n")
 # phase 5 /////////////////////////////////////////
 
 
-with open(r"images\image_captions.json", "r", encoding="utf-8") as f:
+with open(json_path, "r", encoding="utf-8") as f:
     figure_captions_data = json.load(f)
 
 

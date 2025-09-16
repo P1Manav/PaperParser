@@ -492,7 +492,7 @@ const backendUrl = process.env.RENDER_EXTERNAL_HOSTNAME
   ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
   : `http://localhost:${PORT}`
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0",() => {
   console.log(` Backend server running on ${backendUrl}`)
   console.log(` Supabase configured: ${!!supabaseUrl}`)
 })
