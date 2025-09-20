@@ -5,6 +5,11 @@ By combining **AI summarization** and automated content generation, it makes sch
 
 ---
 
+## Demo  
+
+ **[LINK](https://drive.google.com/file/d/1CZZzGf0fnjUsd5mF3ewUkiK8Joub2GMX/view?usp=sharing)**
+---
+
 ## 🚀 Features  
 
 - 🎧 **Podcast Generation** – Listen to research papers in audio format  
