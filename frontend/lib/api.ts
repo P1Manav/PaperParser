@@ -100,7 +100,7 @@ export const deleteGeneration = async (generationId: string, userId: string): Pr
 export const pollGenerationStatus = async (
   generationId: string,
   onUpdate: (status: GenerationStatus) => void,
-  maxAttempts = 60,
+  maxAttempts = 180,
   interval = 5000,
 ): Promise<GenerationStatus> => {
   let attempts = 0

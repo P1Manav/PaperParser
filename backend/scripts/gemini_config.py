@@ -1,245 +1,219 @@
-import asyncio
 import os
-import wave
+import re
+import json
+import asyncio
 import tempfile
-from typing import List
-from pathlib import Path
+from typing import List, Dict
+import time
+from google.genai.errors import ClientError
+import fitz  # PyMuPDF
+from google import genai
+from dotenv import load_dotenv
 
-try:
-    import edge_tts
-except ImportError:
-    print("Warning: edge_tts not available. Low-quality audio generation will not work.")
-    edge_tts = None
+load_dotenv()
 
-try:
-    from google import genai
-    from google.genai import types
-    try:
-        api_key = os.getenv('GEMINI_API_KEY')
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set")
-        client = genai.Client(api_key=api_key)
-    except Exception as e:
-        print(f"Warning: Could not initialize Gemini client: {e}")
-        client = None
-except ImportError:
-    print("Warning: google-genai not available. High-quality audio generation will not work.")
-    genai = None
-    types = None
-    client = None
+from voice import (
+    tts_edge_single_speaker,
+    merge_mp3_files,
+    tts_gemini_multi_speaker,
+)
 
-# ---------- Voice mapping (Gemini label -> Edge TTS voice id) ----------
-EDGE_TTS_VOICE_MAP = {
-    "zephyr": "en-US-GuyNeural",
-    "puck": "en-US-GuyNeural",
-    "charon": "en-US-GuyNeural",
-    "kore": "en-US-JennyNeural",
-    "fenrir": "en-US-GuyNeural",
-    "leda": "en-US-JennyNeural",
-    "orus": "en-US-GuyNeural",
-    "aoede": "en-US-JennyNeural",
-    "callirrhoe": "en-US-JennyNeural",
-    "autonoe": "en-US-JennyNeural",
-    "enceladus": "en-US-JennyNeural",
-    "iapetus": "en-US-GuyNeural",
-    "umbriel": "en-US-GuyNeural",
-    "algieba": "en-US-JennyNeural",
-    "despina": "en-US-JennyNeural",
-    "erinome": "en-US-JennyNeural",
-    "algenib": "en-US-GuyNeural",
-    "rasalgethi": "en-US-GuyNeural",
-    "laomedeia": "en-US-JennyNeural",
-    "achernar": "en-US-JennyNeural",
-    "alnilam": "en-US-GuyNeural",
-    "schedar": "en-US-GuyNeural",
-    "gacrux": "en-US-GuyNeural",
-    "pulcherrima": "en-US-JennyNeural",
-    "achird": "en-US-JennyNeural",
-    "zubenelgenubi": "en-US-JennyNeural",
-    "vindemiatrix": "en-US-JennyNeural",
-    "sadachbia": "en-US-JennyNeural",
-    "sadaltager": "en-US-JennyNeural",
-    "sulafat": "en-US-JennyNeural",
-}
+# ---------- Gemini client setup ----------
+# Allow either GEMINI_API_KEY or GOOGLE_API_KEY
+if "GOOGLE_API_KEY" not in os.environ:
+    raise EnvironmentError("GOOGLE_API_KEY not found in environment variables.")
 
-def normalize_voice_name(voice_label: str) -> str:
-    """Take 'Puck -- Upbeat' -> 'Puck' or handle simple names like 'sarah'."""
-    if not voice_label:
-        return ""
-    base_name = voice_label.split("--")[0].strip()
-    return base_name.lower()
+# Initialize Gemini client
+client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
 
-# ---------- Edge TTS (Low Quality) ----------
-async def tts_edge_single_speaker(text: str, voice_label: str, output_file: str) -> None:
-    """
-    Generate a single MP3 with Edge TTS.
-    voice_label is a Gemini voice name (e.g., 'Puck' or 'sarah').
-    """
-    if not edge_tts:
-        raise RuntimeError("edge_tts not available. Install with: pip install edge-tts")
-    
-    if not text.strip():
-        raise ValueError("Empty text provided for TTS")
-    
-    base = normalize_voice_name(voice_label)
-    mapped = EDGE_TTS_VOICE_MAP.get(base.lower())
-    
-    if not mapped:
-        # Fallback to default voices
-        if any(female in base.lower() for female in ['sarah', 'emma', 'jenny', 'aria', 'female']):
-            mapped = "en-US-JennyNeural"
+# ---------- Text generation helper ----------
+
+def _gen_model_text(prompt, model="gemini-2.5-flash", temperature=0.5):
+    while True:
+        try:
+            resp = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config={"temperature": temperature}
+            )
+            return resp.text
+        except ClientError as e:
+            if "RESOURCE_EXHAUSTED" in str(e):
+                print("Quota hit, waiting 10s before retry...")
+                time.sleep(10)
+            else:
+                raise
+
+
+# ---------- PDF -> text ----------
+def extract_text_from_pdf(pdf_path: str) -> str:
+    doc = fitz.open(pdf_path)
+    pages = []
+    for page in doc:
+        pages.append(page.get_text())
+    return "\n".join(pages)
+
+# ---------- chunk ----------
+def split_into_chunks(text: str, max_chars: int = 3000) -> List[str]:
+    lines = text.splitlines()
+    chunks, cur = [], []
+    cur_len = 0
+    for ln in lines:
+        add = len(ln) + 1
+        if cur_len + add > max_chars and cur:
+            chunks.append("\n".join(cur))
+            cur, cur_len = [ln], add
         else:
-            mapped = "en-US-GuyNeural"
-        print(f"Warning: Voice '{voice_label}' not found, using fallback: {mapped}")
-    
+            cur.append(ln)
+            cur_len += add
+    if cur:
+        chunks.append("\n".join(cur))
+    return chunks
+
+# ---------- summarize ----------
+def summarize_chunks(chunks: List[str]) -> str:
+    summaries = []
+    for chunk in chunks:
+        prompt = f"""
+You are an expert science communicator explaining research papers to an educated but non-specialist audience.
+Read the following section of a paper and create a teaching-style summary:
+- 5–7 sentences.
+- Explain technical terms briefly if needed.
+- Preserve important details about definitions, methods, results, and context.
+- Be clear and engaging, like explaining to graduate students or podcast listeners.
+
+SECTION:
+{chunk}
+"""
+        summaries.append(_gen_model_text(prompt, model="gemini-2.5-flash", temperature=0.5))
+
+    combined = " ".join(summaries)
+
+    compress_prompt = f"""
+Combine the following summaries into a single coherent overview (15–20 sentences).
+Write it as if preparing detailed notes for a podcast discussion:
+- Cover definitions, motivation, methods, key results, limitations, and implications.
+- Maintain clarity and logical flow.
+- Avoid bullet points or list formatting; use natural paragraphs.
+
+SUMMARIES:
+{combined}
+"""
+    return _gen_model_text(compress_prompt, model="gemini-2.5-flash", temperature=0.4)
+
+# ---------- conversation JSON ----------
+CONVO_PROMPT_TEMPLATE = """
+Return a STRICT JSON array where each element is:
+{{"speaker": "Alex" or "Avery", "text": "<1–3 sentence natural utterance>"}}
+
+Rules:
+- Alternate speakers naturally and evenly.
+- Keep style friendly but informed; no stage directions.
+- Use only facts from the paper summary provided.
+- Do NOT include metadata, headings, Markdown, or prose outside the JSON.
+- The text must be ONLY what the speaker says (no "Alex:" prefixes in text).
+
+Paper summary to base the conversation on:
+{summary}
+"""
+
+def _try_parse_json_array(s: str) -> List[Dict[str, str]]:
+    data = json.loads(s)
+    if not isinstance(data, list):
+        raise ValueError("Root is not a list.")
+    # minimal validation
+    out = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        sp = item.get("speaker", "").strip()
+        tx = item.get("text", "").strip()
+        if sp in ("Alex", "Avery") and tx:
+            out.append({"speaker": sp, "text": tx})
+    if not out:
+        raise ValueError("No valid items found.")
+    return out
+
+def build_conversation_json(summary: str) -> List[Dict[str, str]]:
+    # 1st attempt
+    raw = _gen_model_text(CONVO_PROMPT_TEMPLATE.format(summary=summary), model="gemini-2.5-flash", temperature=0.5)
     try:
-        os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
-        
-        communicate = edge_tts.Communicate(text, mapped)
-        await communicate.save(output_file)
-        
-        # Verify file was created
-        if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
-            raise Exception(f"Failed to create audio file: {output_file}")
-            
-    except Exception as e:
-        raise Exception(f"TTS generation failed for voice '{voice_label}': {e}")
+        return _try_parse_json_array(raw)
+    except Exception:
+        pass
 
-def merge_mp3_files(input_files: List[str], output_file: str) -> None:
+    # Try to extract JSON array substring
+    m = re.search(r"\[.*\]", raw, flags=re.DOTALL)
+    if m:
+        try:
+            return _try_parse_json_array(m.group(0))
+        except Exception:
+            pass
+
+    # Last-chance repair prompt
+    repair_prompt = f"""
+You produced JSON-like text but it was invalid.
+Rewrite the following so that it is ONLY a valid JSON array of objects with exactly:
+  - "speaker": "Alex" or "Avery"
+  - "text": string
+No commentary. No Markdown. Just the JSON array.
+
+INPUT:
+{raw}
+"""
+    repaired = _gen_model_text(repair_prompt, model="gemini-2.5-flash", temperature=0.0)
+    return _try_parse_json_array(repaired)
+
+def save_conversation_json(conversation: List[Dict[str, str]], json_path: str) -> None:
+    os.makedirs(os.path.dirname(json_path) or ".", exist_ok=True)
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(conversation, f, ensure_ascii=False, indent=2)
+
+# ---------- audio generation ----------
+async def generate_low_quality_audio(conversation: List[Dict[str, str]],
+                                     Alex_voice_label: str,
+                                     Avery_voice_label: str,
+                                     output_mp3_path: str) -> None:
     """
-    Merge MP3 segments. Uses pydub if available; falls back to naive concat.
+    Low-quality path:
+    - Make one MP3 per dialogue line (speaker speaks ONLY their text).
+    - Merge into a single MP3.
     """
-    if not input_files:
-        raise ValueError("No input files to merge.")
-    
-    missing_files = [f for f in input_files if not os.path.exists(f)]
-    if missing_files:
-        raise FileNotFoundError(f"Missing input files: {missing_files}")
-    
-    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
-    
+    tmpdir = tempfile.mkdtemp(prefix="podcast_segments_")
+    seg_paths: List[str] = []
     try:
-        from pydub import AudioSegment
-        print(f"Merging {len(input_files)} MP3 files using pydub...")
-        
-        combined = AudioSegment.from_file(input_files[0], format="mp3")
-        for i, f in enumerate(input_files[1:], 2):
-            print(f"Adding file {i}/{len(input_files)}")
-            seg = AudioSegment.from_file(f, format="mp3")
-            combined += seg
-        
-        combined.export(output_file, format="mp3")
-        print(f"Successfully merged to: {output_file}")
-        
-    except ImportError:
-        print("pydub not available, using fallback merge method...")
-        # Fallback: byte concat (simple, not gapless but works without deps)
-        with open(output_file, "wb") as w:
-            for i, f in enumerate(input_files, 1):
-                print(f"Concatenating file {i}/{len(input_files)}")
-                with open(f, "rb") as r:
-                    w.write(r.read())
-        print(f"Fallback merge completed: {output_file}")
-    
-    except Exception as e:
-        raise Exception(f"Failed to merge MP3 files: {e}")
+        idx = 1
+        for turn in conversation:
+            speaker = turn["speaker"]
+            text = turn["text"]
+            voice_label = Alex_voice_label if speaker == "Alex" else Avery_voice_label
+            seg_path = os.path.join(tmpdir, f"seg_{idx:04d}.mp3")
+            await tts_edge_single_speaker(text, voice_label, seg_path)
+            seg_paths.append(seg_path)
+            idx += 1
 
-# ---------- Gemini Multi-speaker TTS (High Quality) ----------
-def _wave_write_bytes(filepath: str, pcm_bytes: bytes, channels=1, rate=24000, sample_width=2) -> None:
-    """Write PCM bytes to WAV file with error handling"""
-    try:
-        os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
-        
-        with wave.open(filepath, "wb") as wf:
-            wf.setnchannels(channels)
-            wf.setsampwidth(sample_width)
-            wf.setframerate(rate)
-            wf.writeframes(pcm_bytes)
-            
-        # Verify file was created
-        if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
-            raise Exception(f"Failed to create WAV file: {filepath}")
-            
-    except Exception as e:
-        raise Exception(f"Failed to write WAV file: {e}")
+        merge_mp3_files(seg_paths, output_mp3_path)
+    finally:
+        # clean temp files
+        for p in seg_paths:
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+        try:
+            os.rmdir(tmpdir)
+        except Exception:
+            pass
 
-async def tts_gemini_multi_speaker(conversation_text: str,
-                                   Alex_voice_label: str,
-                                   Avery_voice_label: str,
-                                   output_wav_path: str) -> None:
+async def generate_audio_high(conversation: List[Dict[str, str]],
+                              Alex_voice_label: str,
+                              Avery_voice_label: str,
+                              output_wav_path: str) -> None:
     """
-    Generate a high-quality WAV file using Gemini multi-speaker TTS.
-    conversation_text should be formatted as:
-        'Alex: ...\\nAvery: ...\\nAlex: ...'
+    High-quality path (Gemini multi-speaker, single shot):
+    - Build 'Alex: ...\\nAvery: ...' transcript (labels route to correct voice).
+    - Produce a WAV at output_wav_path.
+    NOTE: Ensure your Node layer passes a '.wav' path for high quality.
     """
-    if not client:
-        raise RuntimeError("Gemini client not available. Check API key and installation.")
-    
-    if not conversation_text.strip():
-        raise ValueError("Empty conversation text provided")
-    
-    Alex_base = normalize_voice_name(Alex_voice_label)
-    Avery_base = normalize_voice_name(Avery_voice_label)
-    
-    # Map to proper Gemini voice names if needed
-    voice_mapping = {
-        'sarah': 'Kore',
-        'emma': 'Aoede', 
-        'jenny': 'Callirrhoe',
-        'aria': 'Autonoe',
-        'david': 'Puck',
-        'john': 'Charon',
-        'mike': 'Zephyr',
-        'alex': 'Fenrir'
-    }
-    
-    Alex_gemini = voice_mapping.get(Alex_base, Alex_base.title())
-    Avery_gemini = voice_mapping.get(Avery_base, Avery_base.title())
-
-    try:
-        print(f"Generating high-quality audio with voices: {Alex_gemini}, {Avery_gemini}")
-        
-        # Generate content using the new SDK
-        response = client.models.generate_content(
-            model='gemini-2.5-flash-preview-tts',
-            contents=conversation_text,
-            config=types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
-                        speaker_voice_configs=[
-                            types.SpeakerVoiceConfig(
-                                speaker="Alex",
-                                voice_config=types.VoiceConfig(
-                                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                        voice_name=Alex_gemini
-                                    )
-                                ),
-                            ),
-                            types.SpeakerVoiceConfig(
-                                speaker="Avery",
-                                voice_config=types.VoiceConfig(
-                                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                        voice_name=Avery_gemini
-                                    )
-                                ),
-                            ),
-                        ]
-                    )
-                ),
-            ),
-        )
-
-        # Extract audio bytes from the response
-        if not response.candidates or not response.candidates[0].content.parts:
-            raise Exception("No audio content in Gemini response")
-            
-        audio_bytes = response.candidates[0].content.parts[0].inline_data.data
-        if not audio_bytes:
-            raise Exception("Empty audio data from Gemini")
-            
-        _wave_write_bytes(output_wav_path, audio_bytes)
-        print(f"High-quality audio generated: {output_wav_path}")
-        
-    except Exception as e:
-        raise Exception(f"Gemini TTS generation failed: {e}")
+    convo_text = "\n".join(f"{turn['speaker']}: {turn['text']}" for turn in conversation)
+    await tts_gemini_multi_speaker(convo_text, Alex_voice_label, Avery_voice_label, output_wav_path)
